@@ -1,0 +1,1 @@
+{"flutter":{"platforms":{"android":{"default":{"projectId":"primer-gogle-auth","appId":"1:1093211927758:android:e90a19657981d40d594c9f","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"primer-gogle-auth","configurations":{"android":"1:1093211927758:android:e90a19657981d40d594c9f"}}}}}}

@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "1093211927758",
+    "project_id": "primer-gogle-auth",
+    "storage_bucket": "primer-gogle-auth.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1093211927758:android:e90a19657981d40d594c9f",
+        "android_client_info": {
+          "package_name": "com.example.primer_login"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1093211927758-kltrssojt1h1qs4ooraemsvacbi2165l.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.primer_login",
+            "certificate_hash": "30c3e73dabbe4fab5ab41901b4fa00da853af7cf"
+          }
+        },
+        {
+          "client_id": "1093211927758-eau6d70tuq76sg5605865511l131ra1u.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyARocLq67VJM7w-dJkvT7ZmRV5pe2_z_6s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1093211927758-eau6d70tuq76sg5605865511l131ra1u.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1093211927758-963koqkjq713rigmumkdh9eo3gkubq8d.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.primerLogin"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
