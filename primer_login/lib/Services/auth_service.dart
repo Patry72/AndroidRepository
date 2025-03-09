@@ -6,6 +6,9 @@ class AuthService {
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
 
   Future<UserCredential> signInWithGoogle() async {
+    // Desloguear antes de iniciar sesión
+    await GoogleSignIn().signOut();
+
     // Trigger the authentication flow
     final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
 
