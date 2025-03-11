@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 //import 'package:flutter_widgets/Services/auth_service.dart';
 
 import '../Services/auth_service.dart';
+import '../Services/drive_service.dart';
 import 'HomePage.dart';
 
 class LoginPage extends StatelessWidget {
@@ -24,6 +25,15 @@ class LoginPage extends StatelessWidget {
                     onPressed: () async {
 
                       final credenciales = await AuthService().signInWithGoogle();
+
+                      final driveService = DriveService();
+                      final folderId = await driveService.createFolder("P2P-Audio-Share");
+
+                      if (folderId != null) {
+                        print("Carpeta creada con ID: $folderId");
+                      } else {
+                        print("Error al crear la carpeta");
+                      }
 
                       debugPrint(credenciales.user?.displayName);
                       debugPrint(credenciales.user?.photoURL);

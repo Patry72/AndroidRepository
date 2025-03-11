@@ -5,8 +5,13 @@ class AuthService {
 
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
 
+  // Configurar Google Sign-In con permisos para Google Drive
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: ['email', 'https://www.googleapis.com/auth/drive.file'],
+  );
+
   Future<UserCredential> signInWithGoogle() async {
-    // Desloguear antes de iniciar sesión
+    // Forzamos elección de cuenta
     await GoogleSignIn().signOut();
 
     // Trigger the authentication flow
@@ -26,7 +31,8 @@ class AuthService {
   }
 
   Future<void> sigOut() async {
-    return await _firebaseAuth.signOut();
+    /*return*/ await _firebaseAuth.signOut();
+    await _googleSignIn.signOut();
   }
 
 
