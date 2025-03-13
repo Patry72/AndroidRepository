@@ -29,20 +29,24 @@ class LoginPage extends StatelessWidget {
                       final driveService = DriveService();
                       final folderId = await driveService.createFolder("P2P-Audio-Share");
 
-                      if (folderId != null) {
+                      /*if (folderId != null) {
                         print("Carpeta creada con ID: $folderId");
                       } else {
                         print("Error al crear la carpeta");
-                      }
+                      }*/
 
                       debugPrint(credenciales.user?.displayName);
                       debugPrint(credenciales.user?.photoURL);
                       debugPrint(credenciales.user?.email);
 
-                      Navigator.push( context, MaterialPageRoute(builder: (context) => const HomePage()));
+                      Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => HomePage(folderId: folderId ?? "")),
+                      );
 
                     },
-                    child: Text("Continua con Google"),
+                    child: Text("Iniciar sesión con Google"),
                   ),
                 ),
 
