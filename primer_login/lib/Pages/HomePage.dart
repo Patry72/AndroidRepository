@@ -85,7 +85,13 @@ class _HomePageState extends State<HomePage> {
                 MaterialPageRoute(builder: (context) => const SearchPage()),
               );
             }
-          )
+          ),
+          /*IconButton(
+            icon: const Icon(Icons.send),  // Icono para enviar
+              onPressed: () {
+
+              },
+          ),*/
         ]),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -111,7 +117,7 @@ class _HomePageState extends State<HomePage> {
                 );
               },
           ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton(   // Botón para subir audio
           onPressed: _pickAndUploadFile,
           tooltip: "Subir archivo",
           child: const Icon(Icons.upload),
