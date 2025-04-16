@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../Services/drive_service.dart';
+import '../Services/tracker_service.dart';
 import '../Pages/searchPage.dart';
 import 'package:file_picker/file_picker.dart';
 
@@ -17,6 +18,8 @@ class _HomePageState extends State<HomePage> {
   List<Map<String, String>>? files;
   bool isLoading = true;
   final DriveService _driveService = DriveService();
+  final TrackerService _trackerService = TrackerService();
+  String username = "usuario1"; // Puedes obtener esto del login, por ejemplo
   Map<String, bool> filesShare = {}; // Map con estado de archivos compartidos
 
   @override
@@ -35,17 +38,23 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  void _toggleShare(String fileId) {
+  Future<void> _toggleShare(String fileId) async {
     setState(() {
       filesShare[fileId] = !(filesShare[fileId] ?? false);
     });
 
+    // Obtenemos audio y su nombre
+    final file = files!.firstWhere((f) => f['id'] == fileId);
+    final fileName = file['name'] ?? 'nameless_audio.mp3';
+
     if (filesShare[fileId] == true) {
       print("Archivo compartido: $fileId");
       // Aquí puedes llamar a la función para hacer público el archivo en Drive
+      await _trackerService.registerUser(username, "register", fileId, fileName);  // Nos registramos en el Tracker
     } else {
       print("Archivo dejado de compartir: $fileId");
       // Aquí puedes llamar a la función para revocar permisos
+      await _trackerService.registerUser(username, "unregister", fileId, fileName);
     }
   }
 
