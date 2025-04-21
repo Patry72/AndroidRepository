@@ -10,6 +10,18 @@ class DriveService {
     'https://www.googleapis.com/auth/drive.file',
   ]);
 
+  // OBTENCIÓN DE TOKEN (PARA ACCESO A ARCHIVO)
+  Future<Map<String, String>> getAuthHeaders() async {
+    final GoogleSignInAccount? account = await GoogleSignIn().signIn();
+    final auth = await account?.authentication;
+    final accessToken = auth?.accessToken;
+
+    return {
+      'Authorization': 'Bearer $accessToken',
+    };
+  }
+
+
   // SUBIDA DE ARCHIVO
   Future<String?> uploadFile(String folderId, String filePath, String fileName) async {
     final googleUser = await _googleSignIn.signIn();
@@ -113,7 +125,6 @@ class DriveService {
 
     return null; // Retorna null si no se encontró la carpeta
   }
-
 
   // CREACIÓN DE CARPETA
   Future<String?> createFolder(String folderName) async {
@@ -233,4 +244,72 @@ class DriveService {
       return null;
     }
   }
+
+  // OBTENCIÓN DE URL DE ARCHIVO
+  Future<String> getFileUrl(String fileId) async {
+    return 'https://drive.google.com/uc?export=download&id=$fileId';
+  }
+
+  // HACER PÚBLICO UN ARCHIVO
+  Future<void> makeFilePublic(String fileId) async {
+    final headers = await getAuthHeaders();
+
+    final response = await http.post(
+      Uri.parse('https://www.googleapis.com/drive/v3/files/$fileId/permissions'),
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        "role": "reader",
+        "type": "anyone"
+      }),
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 204) {
+      print("Archivo $fileId ahora es público.");
+    } else {
+      print("Error al hacer público el archivo: ${response.body}");
+    }
+  }
+
+  // REVOCAR PERMISOS PÚBLICO DE UN ARCHIVO
+  Future<void> revokePublicPermission(String fileId) async {
+    final headers = await getAuthHeaders();
+
+    // Paso 1: obtener todos los permisos del archivo
+    final permissionsUrl = Uri.parse('https://www.googleapis.com/drive/v3/files/$fileId/permissions');
+    final permissionsResp = await http.get(permissionsUrl, headers: headers);
+
+    if (permissionsResp.statusCode != 200) {
+      print("No se pudieron obtener los permisos: ${permissionsResp.body}");
+      return;
+    }
+
+    final permissions = jsonDecode(permissionsResp.body);
+    final permission = (permissions['permissions'] as List)
+        .firstWhere((p) => p['type'] == 'anyone', orElse: () => null);
+
+    if (permission == null) {
+      print("No hay permiso público que revocar.");
+      return;
+    }
+
+    final permissionId = permission['id'];
+
+    // Paso 2: eliminar ese permiso
+    final deleteUrl = Uri.parse(
+      'https://www.googleapis.com/drive/v3/files/$fileId/permissions/$permissionId',
+    );
+
+    final deleteResp = await http.delete(deleteUrl, headers: headers);
+
+    if (deleteResp.statusCode == 204) {
+      print("Permiso público revocado correctamente.");
+    } else {
+      print("Error al revocar permiso: ${deleteResp.body}");
+    }
+  }
+
+
 }

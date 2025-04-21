@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class TrackerService {
-  final String trackerUrl = "http://192.168.1.108:8080/register"; // IP del servidor Tracker
+  final String trackerUrl = "http://192.168.1.109:8080/register"; // IP del servidor Tracker
 
   Future<void> registerUser(String name, String action, String fileId, String fileName) async {
     try {
