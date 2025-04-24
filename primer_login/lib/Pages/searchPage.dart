@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 
-class SearchPage extends StatelessWidget {
+import '../Resources/SharedAudio.dart';
+import '../Services/tracker_service.dart';
+
+class SearchPage extends StatefulWidget {
   const SearchPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  State<SearchPage> createState() => _SearchPageState();
+
+  //@override
+  /*Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Buscar audios")),
       body: Padding(
@@ -27,5 +33,76 @@ class SearchPage extends StatelessWidget {
         ),
       ),
     );
+  }*/
+}
+
+class _SearchPageState extends State<SearchPage> {
+  final TrackerService _trackerService = TrackerService();
+  List<SharedAudio> allAudios = [];
+  List<SharedAudio> filteredAudios = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAudios();
+  }
+
+  Future<void> _loadAudios() async {
+    final audios = await _trackerService.getSharedAudios();
+    setState(() {
+      allAudios = audios;
+      filteredAudios = audios;
+    });
+  }
+
+  void _filterAudios(String query) {
+    setState(() {
+      filteredAudios = allAudios
+          .where((audio) => audio.name.toLowerCase().contains(query.toLowerCase()))
+          .toList();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Buscar audios")),
+      body: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Column(
+          children: [
+            TextField(
+              decoration: InputDecoration(
+                hintText: "Buscar...",
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8.0),
+                ),
+              ),
+              onChanged: _filterAudios,
+            ),
+            const SizedBox(height: 10),
+            Expanded(
+              child: ListView.builder(
+                itemCount: filteredAudios.length,
+                itemBuilder: (context, index) {
+                  final audio = filteredAudios[index];
+                  return ListTile(
+                    leading: const Icon(Icons.music_note),
+                    title: Text(audio.name),
+                    subtitle: Text("Compartido por: ${audio.owner}"),
+                    onTap: () {
+                      // Aquí podrías abrir un reproductor o iniciar descarga
+                      print("Seleccionado: ${audio.name} desde ${audio.ip}");
+                    },
+                  );
+                },
+              ),
+            )
+          ],
+        ),
+      ),
+    );
   }
 }
+
