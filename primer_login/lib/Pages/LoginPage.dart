@@ -35,14 +35,17 @@ class LoginPage extends StatelessWidget {
                         print("Error al crear la carpeta");
                       }*/
 
-                      debugPrint(credenciales.user?.displayName);
+                      final String? userName = credenciales.user?.displayName;
+
+                      debugPrint(userName);
                       debugPrint(credenciales.user?.photoURL);
                       debugPrint(credenciales.user?.email);
 
                       Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (context) => HomePage(folderId: folderId ?? "")),
+                              builder: (context) => HomePage(
+                                  folderId: folderId ?? "", username: userName ?? "Invitado",)),
                       );
 
                     },

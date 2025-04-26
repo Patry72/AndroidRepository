@@ -10,8 +10,9 @@ import 'package:http/http.dart' as http;
 
 class HomePage extends StatefulWidget {
   final String folderId;
+  final String username;
 
-  const HomePage({super.key, required this.folderId});
+  const HomePage({super.key, required this.folderId, required this.username});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -19,6 +20,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
 
+  late String username;
   final player = AudioPlayer();   // Instancia de reproductor de audio
   String? selectedAudio;
   int currentIdx = -1;
@@ -27,7 +29,6 @@ class _HomePageState extends State<HomePage> {
   bool isLoading = true;
   final DriveService _driveService = DriveService();
   final TrackerService _trackerService = TrackerService();
-  String username = "usuario1"; // Puedes obtener esto del login, por ejemplo
   Map<String, bool> filesShare = {}; // Map con estado de archivos compartidos
 
   // Para liberar recursos del reproductor de audio
@@ -40,6 +41,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    username = widget.username;
     _loadFiles();
   }
 

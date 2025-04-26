@@ -1,23 +1,23 @@
 class SharedAudio {
   final String name;
   final String fileId;
-  final String ip;
   final String owner;
+  final String ip;
 
   SharedAudio({
     required this.name,
     required this.fileId,
-    required this.ip,
     required this.owner,
+    required this.ip,
   });
 
   // Método para crear una instancia de Shared audio desde un JSON
   factory SharedAudio.fromJson(Map<String, dynamic> json) {
     return SharedAudio(
-      name: json['name'],
+      name: json['fileName'],
       fileId: json['fileId'],
+      owner: json['user'],
       ip: json['ip'],
-      owner: json['owner'],
     );
   }
 }

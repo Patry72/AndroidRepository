@@ -3,12 +3,12 @@ import 'package:http/http.dart' as http;
 import '../Resources/SharedAudio.dart';
 
 class TrackerService {
-  final String trackerUrl = "http://192.168.1.109:8080/register"; // IP del servidor Tracker
+  final String trackerUrl = "http://192.168.1.104:8080"; // IP del servidor Tracker
 
   Future<void> registerUser(String name, String action, String fileId, String fileName) async {
     try {
       final response = await http.post(
-        Uri.parse(trackerUrl),
+        Uri.parse('$trackerUrl/register'),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "name": name,
@@ -34,6 +34,7 @@ class TrackerService {
 
     if (response.statusCode == 200) {
       final List data = jsonDecode(response.body);
+      print("Audios compartidos obtenidos");
       return data.map((e) => SharedAudio.fromJson(e)).toList();
     } else {
       print("Error al obtener audios compartidos: ${response.body}");
