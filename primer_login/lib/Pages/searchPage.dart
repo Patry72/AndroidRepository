@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-
 import '../Resources/SharedAudio.dart';
 import '../Services/tracker_service.dart';
+import '../Services/drive_service.dart';
 
 class SearchPage extends StatefulWidget {
   const SearchPage({super.key});
@@ -38,6 +38,7 @@ class SearchPage extends StatefulWidget {
 
 class _SearchPageState extends State<SearchPage> {
   final TrackerService _trackerService = TrackerService();
+  final DriveService _driveService = DriveService();
   List<SharedAudio> allAudios = [];
   List<SharedAudio> filteredAudios = [];
 
@@ -103,7 +104,7 @@ class _SearchPageState extends State<SearchPage> {
                     itemCount: filteredAudios.length,
                     itemBuilder: (context, index) {
                       final audio = filteredAudios[index];
-                      return ListTile(
+                      /*return ListTile(
                         leading: const Icon(Icons.music_note),
                         title: Text(audio.name),
                         subtitle: Text("Compartido por: ${audio.owner}"),
@@ -111,6 +112,45 @@ class _SearchPageState extends State<SearchPage> {
                           // Aquí podrías abrir un reproductor o iniciar descarga
                           print("Seleccionado: ${audio.name} desde ${audio.ip}");
                         },
+                      );*/
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ListTile(
+                            leading: const Icon(Icons.music_note),
+                            title: Text(audio.name),
+                            subtitle: Text('Compartido por: ${audio.owner}'),
+                            onTap: () {
+                              print('Seleccionado: ${audio.name} desde ${audio.ip}');
+                            },
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                            child: ElevatedButton.icon(
+                              icon: const Icon(Icons.download_rounded),
+                              label: const Text('Descargar'),
+                              onPressed: () async {
+                                // Asume 'root' o la carpeta destino conocida
+                                /*const destinationFolderId = _driveService.getFolderId("P2P-Audio-Share");
+                                final newId = await _driveService.copyFile(
+                                  audio.fileId,
+                                  destinationFolderId,
+                                  audio.name,
+                                );
+                                if (newId != null) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Archivo descargado con ID: $newId')),
+                                  );
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Error al descargar el archivo')),
+                                  );
+                                }*/
+                              },
+                            ),
+                          ),
+                          const Divider(),
+                        ],
                       );
                     },
                   ),
