@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import '../Resources/SharedAudio.dart';
 
 class TrackerService {
-  final String trackerUrl = "http://192.168.1.111:8080"; // IP del servidor Tracker
+  final String trackerUrl = "http://34.175.220.81:8080"; // IP del servidor Tracker en la VM de Google Cloud Console
 
   Future<void> registerUser(String name, String action, String fileId, String fileName) async {
     try {
