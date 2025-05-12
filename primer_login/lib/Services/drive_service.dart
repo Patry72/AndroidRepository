@@ -237,28 +237,31 @@ class DriveService {
 
   // LISTADO DE ARCHIVOS
   Future<List<Map<String, String>>?> listFilesInFolder(String folderId) async {
-    final googleUser = await _googleSignIn.signIn();
-    final googleAuth = await googleUser?.authentication;
+    //final googleUser = await _googleSignIn.signIn();
+    //final googleAuth = await googleUser?.authentication;
 
-    if (googleAuth == null) {
+    final headers = await getAuthHeaders2();
+    final url = Uri.parse('https://www.googleapis.com/drive/v3/files?q="$folderId"+in+parents&fields=files(id,name)');
+
+    /*if (googleAuth == null) {
       print("Usuario no identificado");
       return null;
-    }
+    }*/
 
-    final accessToken = googleAuth.accessToken;
-    final url = 'https://www.googleapis.com/drive/v3/files?q="$folderId"+in+parents&fields=files(id,name)';
+    //final accessToken = googleAuth.accessToken;
+    //final url = 'https://www.googleapis.com/drive/v3/files?q="$folderId"+in+parents&fields=files(id,name)';
 
     final response = await http.get(
-      Uri.parse(url),
+      url,
       headers: {
-        'Authorization': 'Bearer $accessToken',
+        ...headers,  //'Authorization': 'Bearer $accessToken',
         'Content-Type': 'application/json',
       },
     );
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      final List files = data['files'];
+      final List files = data['files'] as List;
 
       return files.map((file) {
         return {
