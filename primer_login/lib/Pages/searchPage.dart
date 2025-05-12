@@ -22,7 +22,7 @@ class _SearchPageState extends State<SearchPage> {
     _loadAudios();
   }
 
-  // LOAD
+  // LOAD ALL SHARED AUDIOS IN NETWORK
   Future<void> _loadAudios() async {
     final audios = await _trackerService.getSharedAudios();
     print("Audios compartiendo: ${audios.length}");
