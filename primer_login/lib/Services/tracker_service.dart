@@ -29,6 +29,24 @@ class TrackerService {
     }
   }
 
+  Future<List<String>> getMySharedAudiosId(String user) async {
+    final uri = Uri.parse('$trackerUrl/shared')
+        .replace(queryParameters: {'owner': user});
+
+    final resp = await http.get(uri);
+    if (resp.statusCode == 200) {
+      final List<dynamic> list = jsonDecode(resp.body);
+      // Cada elemento es un SharedAudio JSON, extraemos el fileId
+      return list
+          .map((e) => e['fileId'] as String)
+          .toList();
+    } else {
+      // Si hay error, mejor devolver lista vacía y loguear:
+      print('Error fetching shared IDs: ${resp.statusCode} ${resp.body}');
+      return [];
+    }
+  }
+
   // GET ALL SHARED AUDIOS IN NETWORK
   Future<List<SharedAudio>> getSharedAudios() async {
     final response = await http.get(Uri.parse('$trackerUrl/shared'));
