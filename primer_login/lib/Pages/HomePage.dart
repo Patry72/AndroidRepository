@@ -30,6 +30,7 @@ class _HomePageState extends State<HomePage> {
   final DriveService _driveService = DriveService();
   final TrackerService _trackerService = TrackerService();
   Map<String, bool> filesShare = {}; // Map con estado de archivos compartidos
+  Map<String, bool> filesLike = {};  // Map con estado de archivos con Me gusta
 
   // TO FREE RESOURCES FROM AUDIO PLAYER
   @override
@@ -49,13 +50,36 @@ class _HomePageState extends State<HomePage> {
 
   // CARGA DE AUDIOS PERSONALES DE DRIVE
   Future<void> _loadFiles() async {
+    setState(() => isLoading = true);
+
+    // Listamos audios de la carpeta de Drive
     final fileList = await _driveService.listFilesInFolder(widget.folderId);
+
+    // Obtenemos los audios que tenemos compartiendo
+    final sharedIds = await _trackerService.getMySharedAudiosId(username);
 
     setState(() {
       files = fileList;
       isLoading = false;
+
+      // Inicializamos los mapas según lo recuperado
+      for (var file in files!) {
+        final id = file['id']!;
+        filesShare[id] = sharedIds.contains(id);
+        filesLike.putIfAbsent(id, () => false); // Asegura que cada id tiene un valor
+      }
     });
   }
+
+  // CHANGE FROM LIKED TO NO LIKED
+  void _toggleLike(String fileId) {
+    setState(() {
+      filesLike[fileId] = !(filesLike[fileId] ?? false);
+    });
+
+    // IMPLEMENTACIÓN FUTURA //
+  }
+
 
   // CHANGE FROM SHARED TO NOT SHARED
   Future<void> _toggleShare(String fileId) async {
@@ -228,12 +252,50 @@ class _HomePageState extends State<HomePage> {
                 final isShared = filesShare[fileId] ?? false;
 
                 return ListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16.0,  // reduce el padding horizontal por defecto
+                  ),
                   title: Text(file['name'] ?? "Archivo"),
                   leading: const Icon(Icons.music_note),
                   onTap: () => _playAudio(index),
-                  trailing: ElevatedButton(
-                    onPressed: () => _toggleShare(fileId),
-                    child: Icon(isShared ? Icons.public_off : Icons.public_sharp),
+                  trailing: Row(
+                      mainAxisSize: MainAxisSize.min,  // muy importante para no obligar al Row a ocupar todo el ancho
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(right: 20.0),  // espacio extra al botón
+                          child: SizedBox(
+                            width: 36,
+                            height: 36,
+                            child: ElevatedButton(
+                              onPressed: () => _toggleShare(fileId),
+                              style: ElevatedButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: const Size(36, 36),
+                                shape: const CircleBorder(),
+                              ),
+                              child: Icon(
+                                isShared ? Icons.public_off : Icons.public_sharp,
+                                size: 20,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        // Botón de Like
+                        SizedBox(
+                          width: 36,
+                          height: 36,
+                          child: IconButton(
+                            padding: EdgeInsets.zero,
+                            icon: Icon(
+                              filesLike[fileId]! ? Icons.favorite : Icons.favorite_border,
+                              color: filesLike[fileId]! ? Colors.red : Colors.grey,
+                              size: 20,
+                            ),
+                            onPressed: () => _toggleLike(fileId),
+                          ),
+                        ),
+                      ],
                   ),
                 );
               },
@@ -244,6 +306,7 @@ class _HomePageState extends State<HomePage> {
                 left: 0,
                 right: 0,
                 child: Container(
+                  //width: MediaQuery.of(context).size.width * 0.8, // ocupa 80% del ancho
                   color: Colors.green,
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   child: Row(
@@ -277,11 +340,15 @@ class _HomePageState extends State<HomePage> {
               ),
           ],
       ),
-      floatingActionButton: FloatingActionButton(   // Botón para subir audio
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 82.0),
+        child: FloatingActionButton(   // Botón para subir audio
           onPressed: _pickAndUploadFile,
           tooltip: "Subir archivo",
           child: const Icon(Icons.upload),
+        ),
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.startDocked,
     );
   }
 
