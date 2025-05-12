@@ -23,7 +23,7 @@ class _HomePageState extends State<HomePage> {
   late String username;
   final player = AudioPlayer();   // Instancia de reproductor de audio
   String? selectedAudio;
-  int currentIdx = -1;
+  int currentAudioIdx = -1;
   bool isPlaying = false;
   List<Map<String, String>>? files;
   bool isLoading = true;
@@ -31,7 +31,7 @@ class _HomePageState extends State<HomePage> {
   final TrackerService _trackerService = TrackerService();
   Map<String, bool> filesShare = {}; // Map con estado de archivos compartidos
 
-  // Para liberar recursos del reproductor de audio
+  // TO FREE RESOURCES FROM AUDIO PLAYER
   @override
   void dispose() {
     player.dispose();
@@ -42,10 +42,12 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     username = widget.username;
+
+    // Cargamos los audios disponibles en Drive (en proceso)
     _loadFiles();
   }
 
-  // CARGA DE ARCHIVOS
+  // CARGA DE AUDIOS PERSONALES DE DRIVE
   Future<void> _loadFiles() async {
     final fileList = await _driveService.listFilesInFolder(widget.folderId);
 
@@ -55,6 +57,7 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  // CHANGE FROM SHARED TO NOT SHARED
   Future<void> _toggleShare(String fileId) async {
     setState(() {
       filesShare[fileId] = !(filesShare[fileId] ?? false);
@@ -64,17 +67,17 @@ class _HomePageState extends State<HomePage> {
     final file = files!.firstWhere((f) => f['id'] == fileId);
     final fileName = file['name'] ?? 'nameless_audio.mp3';
 
+    // Enviamos petición al Tracker según si compartimos o dejamos de compartir un audio
     if (filesShare[fileId] == true) {
       print("Archivo compartido: $fileId");
-      // Aquí puedes llamar a la función para hacer público el archivo en Drive
-      await _trackerService.registerUser(username, "register", fileId, fileName);  // Nos registramos en el Tracker
+      await _trackerService.registerUser(username, "register", fileId, fileName);
     } else {
       print("Archivo dejado de compartir: $fileId");
-      // Aquí puedes llamar a la función para revocar permisos
       await _trackerService.registerUser(username, "unregister", fileId, fileName);
     }
   }
 
+  // UPLOAD AUDIO FROM LOCAL STORAGE
   Future<void> _pickAndUploadFile() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.audio, // Solo permite archivos de audio
@@ -96,6 +99,8 @@ class _HomePageState extends State<HomePage> {
       }
     }
   }
+
+  // PLAY A SELECTED AUDIO
   void _playAudio(int index) async {
     print("Reproduciendo...");
 
@@ -103,24 +108,26 @@ class _HomePageState extends State<HomePage> {
     final fileId = file['id']!;
     final fileName = file['name'] ?? 'Audio';
 
-    if (currentIdx == index) return;
+    // Si seleccionamos el mismo no hace nada
+    if (currentAudioIdx == index) return;
 
+    // En otro caso, actualizamos índice
     setState(() {
-      currentIdx = index;
+      currentAudioIdx = index;
       selectedAudio = fileName;
     });
 
     try {
-      // 1. Hacer el archivo público si no lo es
+      // Hacemos el archivo público si no lo es
       await _driveService.makeFilePublic(fileId);
 
-      // 2. Reproducir por streaming
+      // Reproducimos audio por streaming
       final url = await _driveService.getFileUrl(fileId);
       await player.setUrl(url);
       await player.play();
       setState(() => isPlaying = true);
 
-      // 3. Escuchar cuándo termina la reproducción y revocar permiso
+      // Revocar permisos cuando acabe la reproucción del audio
       player.playerStateStream.listen((state) async {
         if (state.processingState == ProcessingState.completed) {
           print("Reproducción finalizada. Revocando permiso...");
@@ -158,6 +165,7 @@ class _HomePageState extends State<HomePage> {
     });*/
   }
 
+  // SWITCH TO PLAY/PAUSE
   void _togglePlayPause() {
     if (isPlaying) {
       player.pause();
@@ -168,15 +176,19 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  // PLAY NEXT AUDIO
   void _playNext() {
     if (files == null || files!.isEmpty) return;
-    int nextIndex = (currentIdx + 1) % files!.length;
+    // Acotamos índice (Round Robbin)
+    int nextIndex = (currentAudioIdx + 1) % files!.length;
     _playAudio(nextIndex);
   }
 
+  // PLAY PREVIOUS AUDIO
   void _playPrevious() {
     if (files == null || files!.isEmpty) return;
-    int prevIndex = (currentIdx - 1 + files!.length) % files!.length;
+    // Acotamos índice (Round Robbin)
+    int prevIndex = (currentAudioIdx - 1 + files!.length) % files!.length;
     _playAudio(prevIndex);
   }
 
@@ -188,11 +200,12 @@ class _HomePageState extends State<HomePage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.search),   // Icono de búsqueda
-            onPressed: () {
-              Navigator.push(
+            onPressed: () async {
+              await Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const SearchPage()),
               );
+              _loadFiles();
             }
           ),
           /*IconButton(
@@ -220,7 +233,7 @@ class _HomePageState extends State<HomePage> {
                   onTap: () => _playAudio(index),
                   trailing: ElevatedButton(
                     onPressed: () => _toggleShare(fileId),
-                    child: Text(isShared ? "Dejar de compartir" : "Compartir"),
+                    child: Icon(isShared ? Icons.public_off : Icons.public_sharp),
                   ),
                 );
               },

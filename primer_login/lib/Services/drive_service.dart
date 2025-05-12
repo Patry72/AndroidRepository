@@ -342,7 +342,7 @@ class DriveService {
   // fileId: ID del audio
   // destFolderId: ID de la carpeta destino (P2P-Audio-Share)
   // newName: nombre del audio
-  Future<String?> copyFile(String fileId, String destFolderId, String newName) async {
+  Future<String?> copyFile(String fileId, String? destFolderId, String newName) async {
     final headers = await getAuthHeaders2();
     final url = Uri.parse('https://www.googleapis.com/drive/v3/files/$fileId/copy');
     final body = jsonEncode({
@@ -361,6 +361,7 @@ class DriveService {
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
+      print('Se ha descargado correctamente el audio');
       return data['id'] as String;
     } else {
       print('Error al copiar archivo: ${response.body}');

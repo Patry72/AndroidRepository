@@ -8,32 +8,6 @@ class SearchPage extends StatefulWidget {
 
   @override
   State<SearchPage> createState() => _SearchPageState();
-
-  //@override
-  /*Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("Buscar audios")),
-      body: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Column(
-          children: [
-            TextField(
-              decoration: InputDecoration(
-                hintText: "Buscar...",
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8.0),
-                ),
-              ),
-              onChanged: (value) {
-                print("Buscando: $value"); // Aquí irá la lógica de búsqueda
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }*/
 }
 
 class _SearchPageState extends State<SearchPage> {
@@ -48,6 +22,7 @@ class _SearchPageState extends State<SearchPage> {
     _loadAudios();
   }
 
+  // LOAD
   Future<void> _loadAudios() async {
     final audios = await _trackerService.getSharedAudios();
     print("Audios compartiendo: ${audios.length}");
@@ -131,13 +106,14 @@ class _SearchPageState extends State<SearchPage> {
                               label: const Text('Descargar'),
                               onPressed: () async {
                                 // Asume 'root' o la carpeta destino conocida
-                                /*const destinationFolderId = _driveService.getFolderId("P2P-Audio-Share");
+                                final String? destinationFolderId = await _driveService.getFolderId("P2P-Audio-Share");
                                 final newId = await _driveService.copyFile(
                                   audio.fileId,
                                   destinationFolderId,
                                   audio.name,
                                 );
                                 if (newId != null) {
+                                  // Notificación en pantalla
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(content: Text('Archivo descargado con ID: $newId')),
                                   );
@@ -145,7 +121,7 @@ class _SearchPageState extends State<SearchPage> {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(content: Text('Error al descargar el archivo')),
                                   );
-                                }*/
+                                }
                               },
                             ),
                           ),

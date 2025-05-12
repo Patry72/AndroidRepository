@@ -5,6 +5,7 @@ import '../Resources/SharedAudio.dart';
 class TrackerService {
   final String trackerUrl = "http://34.175.220.81:8080"; // IP del servidor Tracker en la VM de Google Cloud Console
 
+  // REGISTER AN USER
   Future<void> registerUser(String name, String action, String fileId, String fileName) async {
     try {
       final response = await http.post(
@@ -28,7 +29,7 @@ class TrackerService {
     }
   }
 
-  // GET ALL SHARED AUDIOS IN TRACKER
+  // GET ALL SHARED AUDIOS IN NETWORK
   Future<List<SharedAudio>> getSharedAudios() async {
     final response = await http.get(Uri.parse('$trackerUrl/shared'));
 
