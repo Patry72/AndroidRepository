@@ -93,10 +93,10 @@ class _HomePageState extends State<HomePage> {
 
     // Enviamos petición al Tracker según si compartimos o dejamos de compartir un audio
     if (filesShare[fileId] == true) {
-      print("Archivo compartido: $fileId");
+      debugPrint("Archivo compartido: $fileId");
       await _trackerService.registerUser(username, "register", fileId, fileName);
     } else {
-      print("Archivo dejado de compartir: $fileId");
+      debugPrint("Archivo dejado de compartir: $fileId");
       await _trackerService.registerUser(username, "unregister", fileId, fileName);
     }
   }
@@ -111,22 +111,22 @@ class _HomePageState extends State<HomePage> {
       String filePath = result.files.single.path!;
       String fileName = result.files.single.name;
 
-      print("Archivo seleccionado: $fileName");
+      debugPrint("Archivo seleccionado: $fileName");
 
       String? fileId = await _driveService.uploadFile(widget.folderId, filePath, fileName);
 
       if (fileId != null) {
-        print("Archivo subido con éxito: $fileId");
+        debugPrint("Archivo subido con éxito: $fileId");
         _loadFiles(); // Refrescar la lista de archivos
       } else {
-        print("Error al subir el archivo");
+        debugPrint("Error al subir el archivo");
       }
     }
   }
 
   // PLAY A SELECTED AUDIO
   void _playAudio(int index) async {
-    print("Reproduciendo...");
+    debugPrint("Reproduciendo...");
 
     final file = files![index];
     final fileId = file['id']!;
@@ -159,7 +159,7 @@ class _HomePageState extends State<HomePage> {
         }
       });
     } catch (e) {
-      print("Error en reproducción por streaming: $e");
+      debugPrint("Error en reproducción por streaming: $e");
     }
 
     /*final file = files![index];
@@ -198,6 +198,10 @@ class _HomePageState extends State<HomePage> {
       player.play();
       //isPlaying = true;
     }
+
+    setState(() {
+      isPlaying = !isPlaying;
+    });
   }
 
   // PLAY NEXT AUDIO

@@ -25,7 +25,7 @@ class _SearchPageState extends State<SearchPage> {
   // LOAD ALL SHARED AUDIOS IN NETWORK
   Future<void> _loadAudios() async {
     final audios = await _trackerService.getSharedAudios();
-    print("Audios compartiendo: ${audios.length}");
+    debugPrint("Audios compartiendo: ${audios.length}");
     setState(() {
       allAudios = audios;
       //filteredAudios = audios;
@@ -33,7 +33,7 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   void _filterAudios(String query) {
-    print("Filtrando audios: $query");
+    debugPrint("Filtrando audios: $query");
     filteredAudios.clear(); // Limpiar resultados anteriores
     setState(() {
       filteredAudios = allAudios
@@ -96,7 +96,7 @@ class _SearchPageState extends State<SearchPage> {
                             title: Text(audio.name),
                             subtitle: Text('Compartido por: ${audio.owner}'),
                             onTap: () {
-                              print('Seleccionado: ${audio.name} desde ${audio.ip}');
+                              debugPrint('Seleccionado: ${audio.name} desde ${audio.ip}');
                             },
                           ),
                           Padding(

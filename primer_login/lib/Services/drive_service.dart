@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
@@ -9,8 +10,6 @@ class DriveService {
   final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: [
     'https://www.googleapis.com/auth/drive.file',
   ]);
-
-  //String folderId = "";
 
   // OBTENCIÓN DE TOKEN (PARA ACCESO A ARCHIVO)
   Future<Map<String, String>> getAuthHeaders() async {
@@ -32,22 +31,47 @@ class DriveService {
     };
   }
 
-  // SUBIDA DE ARCHIVO
-  Future<String?> uploadFile(String folderId, String filePath, String fileName) async {
-    /*final googleUser = await _googleSignIn.signIn();
-    final googleAuth = await googleUser?.authentication;
+  // OBTENCIÓN DE ID DE CARPETA POR NOMBRE
+  Future<String?> getFolderId(String folderName/*, final googleAuth*/) async {
+    final headers = await getAuthHeaders2();
+    final query = Uri.encodeComponent('name = "$folderName" and mimeType = "application/vnd.google-apps.folder" and trashed = false');
+    //final url = 'https://www.googleapis.com/drive/v3/files?q=name="$folderName"+and+mimeType="application/vnd.google-apps.folder"+and+trashed=false&fields=files(id,name,parents)';
+    final url = Uri.parse('https://www.googleapis.com/drive/v3/files?q=$query&fields=files(id,name, parents)');
 
+    final response = await http.get(
+      url,
+      headers: {
+        //'Authorization': 'Bearer $accessToken',
+        ...headers,
+        'Content-Type': 'application/json',
+      },
+    );
 
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      final List files = data['files'];
 
-    if (googleAuth == null) {
-      print("Usuario no autenticado");
-      return null;
+      if (files.isNotEmpty) {
+        for (var file in files) {
+          debugPrint("Carpeta encontrada: ${file['name']} (ID: ${file['id']})");
+
+          // Verificar si la carpeta realmente está en la raíz de Drive
+          if (file.containsKey('parents')) {
+            debugPrint("id: ${file['id']}");
+            return file['id']; // Devuelve el ID si es una carpeta válida
+          }
+        }
+      }
     }
 
-    final accessToken = googleAuth.accessToken;*/
+    debugPrint("Error al buscar carpeta: ${response.body}");
 
+    return null; // Retorna null si no se encontró la carpeta
+  }
+
+  // SUBIDA DE ARCHIVO
+  Future<String?> uploadFile(String folderId, String filePath, String fileName) async {
     final url = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
-
     final headers = await getAuthHeaders2();
 
     var file = File(filePath);
@@ -58,12 +82,12 @@ class DriveService {
 
     // Si el MIME no se detecta correctamente, lo forzamos a un tipo de audio válido
     if (mimeType == null || mimeType == "application/octet-stream") {
-      print("⚠️ Tipo MIME no detectado, usando audio/mpeg por defecto");
+      debugPrint("⚠️ Tipo MIME no detectado, usando audio/mpeg por defecto");
       mimeType = "audio/mpeg"; // Asumimos MP3 por defecto
     }
 
-    print("📂 Archivo: $fileName");
-    print("📑 Tipo MIME detectado: $mimeType");
+    debugPrint("📂 Archivo: $fileName");
+    debugPrint("📑 Tipo MIME detectado: $mimeType");
 
     var metadata = jsonEncode({
       'name': fileName,
@@ -101,76 +125,26 @@ class DriveService {
     if (response.statusCode == 200 || response.statusCode == 201) {
       var responseData = await response.stream.bytesToString();
       var jsonResponse = jsonDecode(responseData);
-      print("Archivo subido!, ID: ${jsonResponse['id']}");
+      debugPrint("Archivo subido!, ID: ${jsonResponse['id']}");
       return jsonResponse['id'] as String; // Devuelve el ID del archivo subido
     } else {
-      print("Error al subir archivo: ${await response.stream.bytesToString()}");
+      debugPrint("Error al subir archivo: ${await response.stream.bytesToString()}");
       return null;
     }
   }
 
-  // OBTENCIÓN DE ID DE CARPETA POR NOMBRE
-  Future<String?> getFolderId(String folderName/*, final googleAuth*/) async {
-
-    final headers = await getAuthHeaders2();
-    final query = Uri.encodeComponent('name = "$folderName" and mimeType = "application/vnd.google-apps.folder" and trashed = false');
-    //final url = 'https://www.googleapis.com/drive/v3/files?q=name="$folderName"+and+mimeType="application/vnd.google-apps.folder"+and+trashed=false&fields=files(id,name,parents)';
-    final url = Uri.parse('https://www.googleapis.com/drive/v3/files?q=$query&fields=files(id,name, parents)');
-
-    final response = await http.get(
-      url,
-      headers: {
-        //'Authorization': 'Bearer $accessToken',
-        ...headers,
-        'Content-Type': 'application/json',
-      },
-    );
-
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      final List files = data['files'];
-
-      if (files.isNotEmpty) {
-        for (var file in files) {
-          print("Carpeta encontrada: ${file['name']} (ID: ${file['id']})");
-
-          // Verificar si la carpeta realmente está en la raíz de Drive
-          if (file.containsKey('parents')) {
-            print("id: ${file['id']}");
-            return file['id']; // Devuelve el ID si es una carpeta válida
-          }
-        }
-      }
-    }
-
-    print("Error al buscar carpeta: ${response.body}");
-
-    return null; // Retorna null si no se encontró la carpeta
-  }
-
   // CREACIÓN DE CARPETA
   Future<String?> createFolder(String folderName) async {
-    /*final googleUser = await _googleSignIn.signIn();
-    final googleAuth = await googleUser?.authentication;
-
-    if (googleAuth == null) {
-      print("Usuario no identificado");
-      return null; // No autenticado
-    }*/
-
-    /*print('Mostrando carpetas actuales...');
-    listAllFolders();*/
-
-    print('Buscando carpeta...');
+    debugPrint('Buscando carpeta...');
 
     // Primero, verificar si la carpeta ya existe
     String? existingFolderId = await getFolderId(folderName);
     if (existingFolderId != null) {
-      print("La carpeta ya existe en Drive con ID: $existingFolderId");
+      debugPrint("La carpeta ya existe en Drive con ID: $existingFolderId");
       return existingFolderId; // Retorna el ID de la carpeta existente
     }
 
-    print('Creando carpeta...');
+    debugPrint('Creando carpeta...');
 
     //final accessToken = googleAuth.accessToken;
     //final url = 'https://www.googleapis.com/drive/v3/files';
@@ -194,12 +168,12 @@ class DriveService {
     if (response.statusCode == 200 || response.statusCode == 201) {
       final data = jsonDecode(response.body);
       //folderId = data['id'];
-      print("Carpeta creada, ID: ${data['id']}");
+      debugPrint("Carpeta creada, ID: ${data['id']}");
       /*print('Mostrando carpetas nuevas...');
       listAllFolders();*/
       return data['id']; // Retorna el ID de la carpeta creada
     } else {
-      print("Error al crear carpeta: ${response.body}");
+      debugPrint("Error al crear carpeta: ${response.body}");
       return null;
     }
   }
@@ -237,19 +211,11 @@ class DriveService {
 
   // LISTADO DE ARCHIVOS
   Future<List<Map<String, String>>?> listFilesInFolder(String folderId) async {
-    //final googleUser = await _googleSignIn.signIn();
-    //final googleAuth = await googleUser?.authentication;
 
     final headers = await getAuthHeaders2();
-    final url = Uri.parse('https://www.googleapis.com/drive/v3/files?q="$folderId"+in+parents&fields=files(id,name)');
-
-    /*if (googleAuth == null) {
-      print("Usuario no identificado");
-      return null;
-    }*/
-
-    //final accessToken = googleAuth.accessToken;
-    //final url = 'https://www.googleapis.com/drive/v3/files?q="$folderId"+in+parents&fields=files(id,name)';
+    //final url = Uri.parse('https://www.googleapis.com/drive/v3/files?q="$folderId"+in+parents&fields=files(id,name)');
+    final query = Uri.encodeComponent('"$folderId" in parents and trashed = false');
+    final url = Uri.parse('https://www.googleapis.com/drive/v3/files?q=$query&fields=files(id,name)');
 
     final response = await http.get(
       url,
@@ -270,7 +236,7 @@ class DriveService {
         };
       }).toList();
     } else {
-      print("Error al obtener archivos: ${response.body}");
+      debugPrint("Error al obtener archivos: ${response.body}");
       return null;
     }
   }
@@ -297,9 +263,9 @@ class DriveService {
     );
 
     if (response.statusCode == 200 || response.statusCode == 204) {
-      print("Archivo $fileId ahora es público.");
+      debugPrint("Archivo $fileId ahora es público.");
     } else {
-      print("Error al hacer público el archivo: ${response.body}");
+      debugPrint("Error al hacer público el archivo: ${response.body}");
     }
   }
 
@@ -312,7 +278,7 @@ class DriveService {
     final permissionsResp = await http.get(permissionsUrl, headers: headers);
 
     if (permissionsResp.statusCode != 200) {
-      print("No se pudieron obtener los permisos: ${permissionsResp.body}");
+      debugPrint("No se pudieron obtener los permisos: ${permissionsResp.body}");
       return;
     }
 
@@ -321,7 +287,7 @@ class DriveService {
         .firstWhere((p) => p['type'] == 'anyone', orElse: () => null);
 
     if (permission == null) {
-      print("No hay permiso público que revocar.");
+      debugPrint("No hay permiso público que revocar.");
       return;
     }
 
@@ -335,9 +301,9 @@ class DriveService {
     final deleteResp = await http.delete(deleteUrl, headers: headers);
 
     if (deleteResp.statusCode == 204) {
-      print("Permiso público revocado correctamente.");
+      debugPrint("Permiso público revocado correctamente.");
     } else {
-      print("Error al revocar permiso: ${deleteResp.body}");
+      debugPrint("Error al revocar permiso: ${deleteResp.body}");
     }
   }
 
@@ -364,10 +330,10 @@ class DriveService {
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      print('Se ha descargado correctamente el audio');
+      debugPrint('Se ha descargado correctamente el audio');
       return data['id'] as String;
     } else {
-      print('Error al copiar archivo: ${response.body}');
+      debugPrint('Error al copiar archivo: ${response.body}');
       return null;
     }
   }

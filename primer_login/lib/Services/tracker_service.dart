@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../Resources/SharedAudio.dart';
 
@@ -20,12 +21,12 @@ class TrackerService {
       );
 
       if (response.statusCode == 200) {
-        print("Respuesta del Tracker: ${response.body}");
+        debugPrint("Respuesta del Tracker: ${response.body}");
       } else {
-        print("Error al contactar con el Tracker: ${response.statusCode}");
+        debugPrint("Error al contactar con el Tracker: ${response.statusCode}");
       }
     } catch (e) {
-      print("Excepción al registrar usuario: $e");
+      debugPrint("Excepción al registrar usuario: $e");
     }
   }
 
@@ -42,7 +43,7 @@ class TrackerService {
           .toList();
     } else {
       // Si hay error, mejor devolver lista vacía y loguear:
-      print('Error fetching shared IDs: ${resp.statusCode} ${resp.body}');
+      debugPrint('Error fetching shared IDs: ${resp.statusCode} ${resp.body}');
       return [];
     }
   }
@@ -53,10 +54,10 @@ class TrackerService {
 
     if (response.statusCode == 200) {
       final List data = jsonDecode(response.body);
-      print("Audios compartidos obtenidos");
+      debugPrint("Audios compartidos obtenidos");
       return data.map((e) => SharedAudio.fromJson(e)).toList();
     } else {
-      print("Error al obtener audios compartidos: ${response.body}");
+      debugPrint("Error al obtener audios compartidos: ${response.body}");
       return [];
     }
   }

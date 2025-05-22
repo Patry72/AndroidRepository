@@ -1,7 +1,4 @@
 import 'package:flutter/material.dart';
-//import 'package:flutter_widgets/Pages/HomePage.dart';
-//import 'package:flutter_widgets/Services/auth_service.dart';
-
 import '../Services/auth_service.dart';
 import '../Services/drive_service.dart';
 import 'HomePage.dart';
@@ -24,7 +21,7 @@ class LoginPage extends StatelessWidget {
                   child: ElevatedButton(
                     onPressed: () async {
 
-                      final credenciales = await AuthService().signInWithGoogle();
+                      final credentials = await AuthService().signInWithGoogle();
 
                       final driveService = DriveService();
                       final folderId = await driveService.createFolder("P2P-Audio-Share");
@@ -35,11 +32,11 @@ class LoginPage extends StatelessWidget {
                         print("Error al crear la carpeta");
                       }*/
 
-                      final String? userName = credenciales.user?.displayName;
+                      final String? userName = credentials.user?.displayName;
 
                       debugPrint(userName);
-                      debugPrint(credenciales.user?.photoURL);
-                      debugPrint(credenciales.user?.email);
+                      debugPrint(credentials.user?.photoURL);
+                      debugPrint(credentials.user?.email);
 
                       Navigator.push(
                           context,
