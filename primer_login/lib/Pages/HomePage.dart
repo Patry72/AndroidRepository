@@ -7,6 +7,7 @@ import 'package:just_audio/just_audio.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart'; // Para MediaType
 
 class HomePage extends StatefulWidget {
   final String folderId;
@@ -121,7 +122,36 @@ class _HomePageState extends State<HomePage> {
       } else {
         debugPrint("Error al subir el archivo");
       }
+
+      // Enviamos el audio al servidor para análisis
+      try {
+        final uri = Uri.parse('https://34.175.220.81:8080/api/analyze');  // MODIFICAR
+        final request = http.MultipartRequest('POST', uri)
+        // Opcional: enviamos también el fileId para rastrear
+          ..fields['fileId'] = fileId!  // Se ha incluido ! para checkear nulidad
+        // Adjuntamos el fichero
+          ..files.add(await http.MultipartFile.fromPath(
+            'audio',
+            filePath,
+            filename: fileName,
+            contentType: MediaType('audio', fileName.split('.').last),
+          ));
+
+        final response = await request.send();
+        if (response.statusCode == 200) {
+          debugPrint('Análisis iniciado correctamente en el servidor');
+        } else {
+          debugPrint('Error al iniciar análisis: ${response.statusCode}');
+        }
+      } catch (e) {
+        debugPrint('Excepción enviando audio al servidor: $e');
+      }
+
     }
+
+    // Refrescamos lista de audios cuando acabe el análisis
+    await _loadFiles();
+
   }
 
   // PLAY A SELECTED AUDIO
