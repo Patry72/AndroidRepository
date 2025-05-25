@@ -131,17 +131,24 @@ class _HomePageState extends State<HomePage> {
           ..fields['fileId'] = fileId!  // Se ha incluido ! para checkear nulidad
         // Adjuntamos el fichero
           ..files.add(await http.MultipartFile.fromPath(
-            'audio',
+            'file',
             filePath,
             filename: fileName,
             contentType: MediaType('audio', fileName.split('.').last),
           ));
 
-        final response = await request.send();
-        if (response.statusCode == 200) {
+        final streamedResp = await request.send();
+        final resp = await http.Response.fromStream(streamedResp);
+
+        if (resp.statusCode == 200) {
           debugPrint('Análisis iniciado correctamente en el servidor');
+
+          // El cuerpo es texto plano con el informe de coincidencias
+          final report = resp.body;
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Análisis completado:\n$report')),);
         } else {
-          debugPrint('Error al iniciar análisis: ${response.statusCode}');
+          debugPrint('Error al iniciar análisis: ${resp.statusCode}');
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error en análisis: ${resp.statusCode}')),);
         }
       } catch (e) {
         debugPrint('Excepción enviando audio al servidor: $e');

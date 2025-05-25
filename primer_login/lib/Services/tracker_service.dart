@@ -30,6 +30,10 @@ class TrackerService {
     }
   }
 
+  Future<void> _sendToServerForAnalysis(String filePath) async {
+
+  }
+
   Future<List<String>> getMySharedAudiosId(String user) async {
     final uri = Uri.parse('$trackerUrl/shared')
         .replace(queryParameters: {'owner': user});
