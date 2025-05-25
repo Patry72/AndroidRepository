@@ -125,7 +125,7 @@ class _HomePageState extends State<HomePage> {
 
       // Enviamos el audio al servidor para análisis
       try {
-        final uri = Uri.parse('https://34.175.220.81:8080/api/analyze');  // MODIFICAR
+        final uri = Uri.parse('http://34.175.220.81:8080/api/analyze');  // MODIFICAR
         final request = http.MultipartRequest('POST', uri)
         // Opcional: enviamos también el fileId para rastrear
           ..fields['fileId'] = fileId!  // Se ha incluido ! para checkear nulidad
