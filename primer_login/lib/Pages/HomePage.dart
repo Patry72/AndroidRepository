@@ -32,6 +32,9 @@ class _HomePageState extends State<HomePage> {
   final TrackerService _trackerService = TrackerService();
   Map<String, bool> filesShare = {}; // Map con estado de archivos compartidos
   Map<String, bool> filesLike = {};  // Map con estado de archivos con Me gusta
+  Duration duration = Duration.zero;  // Para el panel de reproducción
+  Duration position = Duration.zero;  // Para el panel de reproducción
+  bool panelHide = false;  // Para ocultar o no el panel de reproducción
 
   // TO FREE RESOURCES FROM AUDIO PLAYER
   @override
@@ -45,8 +48,16 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     username = widget.username;
 
-    // Cargamos los audios disponibles en Drive (en proceso)
+    // Cargamos los audios disponibles en Drive
     _loadFiles();
+
+    // Escucha cambios de duración y posición
+    player.durationStream.listen((dur) {
+      if (dur != null) setState(() => duration = dur);
+    });
+    player.positionStream.listen((pos) {
+      setState(() => position = pos);
+    });
   }
 
   // CARGA DE AUDIOS PERSONALES DE DRIVE
@@ -257,6 +268,14 @@ class _HomePageState extends State<HomePage> {
     _playAudio(prevIndex);
   }
 
+  // RESET A DURATION AS mm:ss
+  String _formatDuration(Duration d) {
+    final twoDigits = (int n) => n.toString().padLeft(2, '0');
+    final minutes = twoDigits(d.inMinutes.remainder(60));
+    final seconds = twoDigits(d.inSeconds.remainder(60));
+    return '$minutes:$seconds';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -341,40 +360,94 @@ class _HomePageState extends State<HomePage> {
                 );
               },
             ),
+            // PANEL DE REPRODUCCIÓN
             if (selectedAudio != null)
               Positioned(
                 bottom: 0,
                 left: 0,
                 right: 0,
-                child: Container(
+                child: AnimatedContainer(
                   //width: MediaQuery.of(context).size.width * 0.8, // ocupa 80% del ancho
+                  duration: const Duration(milliseconds: 200),
+                  height: panelHide ? 120 : 48,
                   color: Colors.green,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  //padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Expanded(
-                        child: Text(
-                          selectedAudio!,
-                          style: const TextStyle(color: Colors.white),
-                          overflow: TextOverflow.ellipsis,
+                      Row(
+                        // mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          IconButton(
+                            icon: Icon(
+                              panelHide ? Icons.expand_more : Icons.expand_less,
+                              color: Colors.white,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                panelHide = !panelHide;
+                              });
+                            },
+                          ),
+                          Expanded(
+                            child: Text(
+                              selectedAudio!,
+                              style: const TextStyle(color: Colors.white),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          IconButton(
+                            icon: Icon(
+                              isPlaying ? Icons.pause : Icons.play_arrow,
+                              color: Colors.white,
+                            ),
+                            onPressed: _togglePlayPause,
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.skip_previous, color: Colors.white),
+                            onPressed: _playPrevious,
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.skip_next, color: Colors.white),
+                            onPressed: _playNext,
+                          ),
+                        ],
+                      ),
+                      if (panelHide) ...[
+                        Row(
+                          children: [
+                            // Tiempo transcurrido
+                            Text(
+                              _formatDuration(position),
+                              style: const TextStyle(color: Colors.white70, fontSize: 12),
+                            ),
+                            Expanded(
+                              child: Slider(
+                                activeColor: Colors.white,
+                                inactiveColor: Colors.white38,
+                                min: 0,
+                                max: duration.inMilliseconds.toDouble().clamp(1.0, double.infinity),
+                                value: position.inMilliseconds
+                                    .clamp(0, duration.inMilliseconds)
+                                    .toDouble(),
+                                onChanged: (value) {
+                                  setState(() {
+                                    position = Duration(milliseconds: value.toInt());
+                                  });
+                                },
+                                onChangeEnd: (value) {
+                                  player.seek(Duration(milliseconds: value.toInt()));
+                                },
+                              ),
+                            ),
+                            // Duración total
+                            Text(
+                              _formatDuration(duration),
+                              style: const TextStyle(color: Colors.white70, fontSize: 12),
+                            ),
+                          ],
                         ),
-                      ),
-                      IconButton(
-                        icon: Icon(
-                          isPlaying ? Icons.pause : Icons.play_arrow,
-                          color: Colors.white,
-                        ),
-                        onPressed: _togglePlayPause,
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.skip_previous, color: Colors.white),
-                        onPressed: _playPrevious,
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.skip_next, color: Colors.white),
-                        onPressed: _playNext,
-                      ),
+                      ],
                     ],
                   ),
                 ),
@@ -382,7 +455,7 @@ class _HomePageState extends State<HomePage> {
           ],
       ),
       floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 82.0),
+        padding: const EdgeInsets.only(bottom: 120.0),
         child: FloatingActionButton(   // Botón para subir audio
           onPressed: _pickAndUploadFile,
           tooltip: "Subir archivo",
