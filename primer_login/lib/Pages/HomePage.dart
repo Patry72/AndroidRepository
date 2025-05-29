@@ -4,8 +4,6 @@ import '../Services/tracker_service.dart';
 import '../Pages/searchPage.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:just_audio/just_audio.dart';
-import 'dart:io';
-import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart'; // Para MediaType
 
@@ -270,7 +268,7 @@ class _HomePageState extends State<HomePage> {
 
   // RESET A DURATION AS mm:ss
   String _formatDuration(Duration d) {
-    final twoDigits = (int n) => n.toString().padLeft(2, '0');
+    twoDigits(int n) => n.toString().padLeft(2, '0');
     final minutes = twoDigits(d.inMinutes.remainder(60));
     final seconds = twoDigits(d.inSeconds.remainder(60));
     return '$minutes:$seconds';
