@@ -4,7 +4,11 @@ import 'package:http/http.dart' as http;
 import '../Resources/SharedAudio.dart';
 
 class TrackerService {
-  final String trackerUrl = "http://34.175.220.81:8080"; // IP del servidor Tracker en la VM de Google Cloud Console
+  //final String trackerUrl = "http://34.175.127.228:8080"; // IP del servidor Tracker en la VM de Google Cloud Console tracker-vm: 34.175.220.81 tracker-vm-2: 34.175.127.228
+  final String trackerUrl;
+
+  // CONSTRUCTOR que inicializa la url al tracker
+  TrackerService(this.trackerUrl);
 
   // REGISTER AN USER
   Future<void> registerUser(String name, String action, String fileId, String fileName) async {

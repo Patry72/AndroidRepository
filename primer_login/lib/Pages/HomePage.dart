@@ -6,6 +6,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart'; // Para MediaType
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HomePage extends StatefulWidget {
   final String folderId;
@@ -24,30 +25,31 @@ class _HomePageState extends State<HomePage> {
   String? selectedAudio;
   int currentAudioIdx = -1;
   bool isPlaying = false;
-  List<Map<String, String>>? files;
   bool isLoading = true;
-  final DriveService _driveService = DriveService();
-  final TrackerService _trackerService = TrackerService();
-  Map<String, bool> filesShare = {}; // Map con estado de archivos compartidos
-  Map<String, bool> filesLike = {};  // Map con estado de archivos con Me gusta
-  Duration duration = Duration.zero;  // Para el panel de reproducción
-  Duration position = Duration.zero;  // Para el panel de reproducción
   bool panelHide = false;  // Para ocultar o no el panel de reproducción
 
-  // TO FREE RESOURCES FROM AUDIO PLAYER
-  @override
-  void dispose() {
-    player.dispose();
-    super.dispose();
-  }
+  final DriveService _driveService = DriveService();
+  final TrackerService _tracker1Service = TrackerService("http://34.175.220.81:8080");
+  final TrackerService _tracker2Service = TrackerService("http://34.175.127.228:8080");
+
+  List<Map<String, String>>? files;
+  Map<String, bool> filesShare = {}; // Map con estado de archivos compartidos
+  Map<String, bool> filesLike = {};  // Map con estado de archivos con Me gusta
+  Map<String, int> filesInTracker = {}; // Map con número de tracker de los archivos (0: ninguno, 1: tracker-1, 2: tracker-2)
+
+  Duration duration = Duration.zero;  // Para el panel de reproducción
+  Duration position = Duration.zero;  // Para el panel de reproducción
 
   @override
   void initState() {
     super.initState();
     username = widget.username;
 
+    // Restaura estado previo
+    _loadPrevState();
+
     // Cargamos los audios disponibles en Drive
-    _loadFiles();
+    //_loadFiles();
 
     // Escucha cambios de duración y posición
     player.durationStream.listen((dur) {
@@ -55,7 +57,18 @@ class _HomePageState extends State<HomePage> {
     });
     player.positionStream.listen((pos) {
       setState(() => position = pos);
+      // Guardamos la posición para próximo inicio
+      _savePrevPosition(pos);
     });
+
+    // No he añadido cambios de estado (play/pause) de ChatGPT
+  }
+
+  // TO FREE RESOURCES FROM AUDIO PLAYER
+  @override
+  void dispose() {
+    player.dispose();
+    super.dispose();
   }
 
   // CARGA DE AUDIOS PERSONALES DE DRIVE
@@ -66,7 +79,8 @@ class _HomePageState extends State<HomePage> {
     final fileList = await _driveService.listFilesInFolder(widget.folderId);
 
     // Obtenemos los audios que tenemos compartiendo
-    final sharedIds = await _trackerService.getMySharedAudiosId(username);
+    final sharedIds1 = await _tracker1Service.getMySharedAudiosId(username);
+    final sharedIds2 = await _tracker2Service.getMySharedAudiosId(username);
 
     setState(() {
       files = fileList;
@@ -75,9 +89,20 @@ class _HomePageState extends State<HomePage> {
       // Inicializamos los mapas según lo recuperado
       for (var file in files!) {
         final id = file['id']!;
-        filesShare[id] = sharedIds.contains(id);
+        final inTracker1 = sharedIds1.contains(id);
+        final inTracker2 = sharedIds2.contains(id);
+        filesShare[id] = inTracker1 || inTracker2;
         filesLike.putIfAbsent(id, () => false); // Asegura que cada id tiene un valor
+
+        if (inTracker1) {
+          filesInTracker[id] = 1;
+        } else if (inTracker2) {
+          filesInTracker[id] = 2;
+        } else {
+          filesInTracker[id] = 0;
+        }
       }
+
     });
   }
 
@@ -92,7 +117,7 @@ class _HomePageState extends State<HomePage> {
 
 
   // CHANGE FROM SHARED TO NOT SHARED
-  Future<void> _toggleShare(String fileId) async {
+  /*Future<void> _toggleShare(String fileId) async {
     setState(() {
       filesShare[fileId] = !(filesShare[fileId] ?? false);
     });
@@ -108,6 +133,107 @@ class _HomePageState extends State<HomePage> {
     } else {
       debugPrint("Archivo dejado de compartir: $fileId");
       await _trackerService.registerUser(username, "unregister", fileId, fileName);
+    }
+  }*/
+
+  void _toggleShare(String fileId, String fileName) {
+    final int state = filesInTracker[fileId] ?? 0;
+
+    // Si aún no está registrado en ningún tracker, pregunta
+    if (state == 0) {
+      showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text("¿A qué tracker registrar este audio?"),
+            //content: const Text("Selecciona Tracker-1 o Tracker-2"),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  _registerToTracker(fileId, fileName, 1);
+                },
+                child: const Text("Tracker-1"),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  _registerToTracker(fileId, fileName, 2);
+                },
+                child: const Text("Tracker-2"),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop(); // Cancelar
+                },
+                child: const Text("Cancelar"),
+              ),
+            ],
+          );
+        },
+      );
+    // Si está registrado en tracker-1, lo desregistramos de tracker-1
+    } else if (state == 1) {
+      _unregisterFromTracker(fileId, fileName, 1);
+    // Si está registrado en tracker-2, lo desregistramos de tracker-2
+    } else if (state == 2) {
+      _unregisterFromTracker(fileId, fileName, 2);
+    }
+  }
+
+  Future<void> _registerToTracker(String fileId, String fileName, int trackerNumber) async {
+    final servicio = (trackerNumber == 1) ? _tracker1Service : _tracker2Service;
+    // Llamamos a _sendToTracker, que hará registerUser con action="register"
+    await _sendToTracker(fileId, fileName, servicio);
+    setState(() {
+      filesInTracker[fileId] = trackerNumber;
+      filesShare[fileId] = true;
+    });
+  }
+
+  Future<void> _unregisterFromTracker(String fileId, String fileName, int trackerNumber) async {
+    final servicio = (trackerNumber == 1) ? _tracker1Service : _tracker2Service;
+    // Para desregistrar, llamamos exactamente al mismo _sendToTracker,
+    // porque él detecta que filesShare[fileId] es true y hará action="unregister".
+    await _sendToTracker(fileId, fileName, servicio);
+    setState(() {
+      filesInTracker[fileId] = 0;
+      filesShare[fileId] = false;
+    });
+  }
+
+  Future<void> _sendToTracker(String fileId, String fileName, TrackerService tracker) async {
+    final currentlyShared = filesShare[fileId] ?? false;
+    final action = currentlyShared ? "unregister" : "register";
+
+    try {
+      /// Llamamos al método del servicio, pasándole:
+      /// - user: username
+      /// - action: "register" o "unregister"
+      /// - fileId, fileName
+      await tracker.registerUser(username, action, fileId, fileName);
+
+      // Si no hubo excepción, consideramos que el tracker respondió OK (200) internamente
+      setState(() {
+        filesShare[fileId] = !currentlyShared;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            currentlyShared
+                ? 'Se dejó de compartir "$fileName" en ${tracker.trackerUrl}'
+                : 'Se compartió "$fileName" en ${tracker.trackerUrl}',
+          ),
+        ),
+      );
+    } catch (e) {
+      // Si registerUser lanza excepción, lo capturamos aquí
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error conectando con ${tracker.trackerUrl}: $e'),
+        ),
+      );
     }
   }
 
@@ -170,6 +296,44 @@ class _HomePageState extends State<HomePage> {
 
   }
 
+  // DELETE AUDIO FROM APP
+  Future<void> _deleteFile(String fileId, String fileName) async {
+    try {
+      await _driveService.deleteFile(fileId);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Archivo "$fileName" eliminado correctamente')),
+      );
+      _loadFiles();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al eliminar "$fileName": $e')),
+      );
+    }
+  }
+
+  void _confirmDelete(String fileId, String fileName) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text('Eliminar "$fileName"'),
+        content: const Text('¿Estás seguro de eliminar este audio?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _deleteFile(fileId, fileName);
+            },
+            child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
   // PLAY A SELECTED AUDIO
   void _playAudio(int index) async {
     debugPrint("Reproduciendo...");
@@ -187,6 +351,9 @@ class _HomePageState extends State<HomePage> {
       selectedAudio = fileName;
     });
 
+    // Guardamos inmediatamente el nuevo estado
+    await _saveAudioState(fileId, fileName, index);
+
     try {
       // Hacemos el archivo público si no lo es
       await _driveService.makeFilePublic(fileId);
@@ -200,7 +367,7 @@ class _HomePageState extends State<HomePage> {
       // Revocar permisos cuando acabe la reproucción del audio
       player.playerStateStream.listen((state) async {
         if (state.processingState == ProcessingState.completed) {
-          print("Reproducción finalizada. Revocando permiso...");
+          debugPrint("Reproducción finalizada. Revocando permiso...");
           await _driveService.revokePublicPermission(fileId);
         }
       });
@@ -274,6 +441,53 @@ class _HomePageState extends State<HomePage> {
     return '$minutes:$seconds';
   }
 
+  Future<void> _loadPrevState() async {
+    await _loadFiles();
+    await _restoreAudioState();
+  }
+
+  Future<void> _savePrevPosition(Duration pos) async {
+    final pref = await SharedPreferences.getInstance();
+    await pref.setInt('savedPositionMs', pos.inMilliseconds);
+  }
+
+  Future<void> _saveAudioState(String fileId, String name, int idx) async {
+    final pref = await SharedPreferences.getInstance();
+    await pref.setString('savedFileId', fileId);
+    await pref.setString('savedFileName', name);
+    await pref.setInt('savedAudioIdx', idx);
+  }
+
+  Future<void> _restoreAudioState() async {
+    final pref = await SharedPreferences.getInstance();
+    final idx      = pref.getInt('savedAudioIdx');
+    final fileId   = pref.getString('savedFileId');
+    final fileName = pref.getString('savedFileName');
+    final posMs    = pref.getInt('savedPositionMs') ?? 0;
+    //final playFlag = pref.getBool('savedIsPlaying') ?? false;
+
+    // Comprueba que los archivos ya estén cargados y el índice sea válido
+    if (files != null && idx != null && idx >= 0 && idx < files!.length) {
+      final f = files![idx];
+      if (f['id'] == fileId) {
+        setState(() {
+          currentAudioIdx = idx;
+          selectedAudio = fileName;
+          //isPlaying = playFlag;
+        });
+        try {
+          await _driveService.makeFilePublic(fileId!);
+          final url = await _driveService.getFileUrl(fileId);
+          await player.setUrl(url);
+          await player.seek(Duration(milliseconds: posMs));
+          //if (playFlag) await player.play();
+        } catch (e) {
+          debugPrint("Error restaurando audio: $e");
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -296,7 +510,8 @@ class _HomePageState extends State<HomePage> {
 
               },
           ),*/
-        ]),
+        ],
+      ),
       body: Stack(
           children: [
             isLoading ? const Center(child: CircularProgressIndicator())
@@ -305,17 +520,17 @@ class _HomePageState extends State<HomePage> {
               itemCount: files!.length,
               itemBuilder: (context, index) {
                 final file = files![index];
+                final name = file['name'] ?? 'Archivo';
                 final fileId = file['id']!;
                 // Actualizamos map con estado de cada archivo
                 final isShared = filesShare[fileId] ?? false;
-
                 return ListTile(
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16.0,  // reduce el padding horizontal por defecto
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16.0,  // reduce el padding horizontal por defecto
                   ),
                   title: Text(file['name'] ?? "Archivo"),
                   leading: const Icon(Icons.music_note),
                   onTap: () => _playAudio(index),
+                  onLongPress: () => _confirmDelete(fileId, name),
                   trailing: Row(
                       mainAxisSize: MainAxisSize.min,  // muy importante para no obligar al Row a ocupar todo el ancho
                       children: [
@@ -325,7 +540,7 @@ class _HomePageState extends State<HomePage> {
                             width: 36,
                             height: 36,
                             child: ElevatedButton(
-                              onPressed: () => _toggleShare(fileId),
+                              onPressed: () => _toggleShare(fileId, name),
                               style: ElevatedButton.styleFrom(
                                 padding: EdgeInsets.zero,
                                 minimumSize: const Size(36, 36),

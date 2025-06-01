@@ -337,4 +337,19 @@ class DriveService {
       return null;
     }
   }
+
+  // ELIMINACIÓN DE UN AUDIO
+  Future<void> deleteFile(String fileId) async {
+    final headers = await getAuthHeaders2();
+    final response = await http.delete(
+      Uri.parse('https://www.googleapis.com/drive/v3/files/$fileId'),
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json',
+      },
+    );
+    if (response.statusCode != 204) {
+      throw Exception('Error borrando archivo: ${response.body}');
+    }
+  }
 }

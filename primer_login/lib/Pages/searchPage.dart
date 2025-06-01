@@ -11,7 +11,7 @@ class SearchPage extends StatefulWidget {
 }
 
 class _SearchPageState extends State<SearchPage> {
-  final TrackerService _trackerService = TrackerService();
+  final TrackerService _trackerService = TrackerService("http://34.175.220.81:8080"); // De momento sólo busca en tracker-1
   final DriveService _driveService = DriveService();
   List<SharedAudio> allAudios = [];
   List<SharedAudio> filteredAudios = [];
