@@ -3,15 +3,13 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
-import 'package:google_sign_in/google_sign_in.dart';
-import 'package:mime/mime.dart'; // Agregar esta importación para detectar MIME types
+import 'package:google_sign_in/google_sign_in.dart';  // Para autenticacióncon Google
+import 'package:mime/mime.dart';                      // Para detectar MIME types
 
 class DriveService {
-  final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: [
-    'https://www.googleapis.com/auth/drive.file',
-  ]);
+  final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: ['https://www.googleapis.com/auth/drive.file',]);
 
-  // OBTENCIÓN DE TOKEN (PARA ACCESO A ARCHIVO)
+  /// === OBTENCIÓN DE TOKEN (PARA ACCESO A ARCHIVO) --> NO LO USO ===
   Future<Map<String, String>> getAuthHeaders() async {
     final GoogleSignInAccount? account = await GoogleSignIn().signIn();
     final auth = await account?.authentication;
@@ -22,7 +20,7 @@ class DriveService {
     };
   }
 
-  // OBTENCIÓN DE HEADERS DE AUTENTICACIÓN
+  /// === OBTENCIÓN DE HEADERS DE AUTENTICACIÓN ===
   Future<Map<String, String>> getAuthHeaders2() async {
     final account = await _googleSignIn.signIn();
     final auth = await account?.authentication;
@@ -31,13 +29,17 @@ class DriveService {
     };
   }
 
-  // OBTENCIÓN DE ID DE CARPETA POR NOMBRE
+  /// === OBTENCIÓN DE ID DE CARPETA POR NOMBRE ===
+  /// folderName: nombre de la carpeta a buscar
   Future<String?> getFolderId(String folderName/*, final googleAuth*/) async {
+    // Obtenemos headers para autenticación
     final headers = await getAuthHeaders2();
+
+    // Construimos la petición para buscar carpetas cuyo nombre coincida con "folderName" y no estén en la Papelera
     final query = Uri.encodeComponent('name = "$folderName" and mimeType = "application/vnd.google-apps.folder" and trashed = false');
-    //final url = 'https://www.googleapis.com/drive/v3/files?q=name="$folderName"+and+mimeType="application/vnd.google-apps.folder"+and+trashed=false&fields=files(id,name,parents)';
     final url = Uri.parse('https://www.googleapis.com/drive/v3/files?q=$query&fields=files(id,name, parents)');
 
+    // Enviamos la petición
     final response = await http.get(
       url,
       headers: {
@@ -48,7 +50,10 @@ class DriveService {
     );
 
     if (response.statusCode == 200) {
+      // Si tenemos éxito pasamos la respuesta a JSON
       final data = jsonDecode(response.body);
+
+      // Guardamos los ficheros (carpetas) que encuentra la petición
       final List files = data['files'];
 
       if (files.isNotEmpty) {
@@ -58,26 +63,37 @@ class DriveService {
           // Verificar si la carpeta realmente está en la raíz de Drive
           if (file.containsKey('parents')) {
             debugPrint("id: ${file['id']}");
-            return file['id']; // Devuelve el ID si es una carpeta válida
+
+            // Devolvemos el ID de la carpeta encontrada
+            return file['id'];
           }
         }
       }
     }
 
-    debugPrint("Error al buscar carpeta: ${response.body}");
+    // Si no tenemos éxito devolvemos null
+    debugPrint("⚠️ Error al buscar carpeta: ${response.body}");
 
-    return null; // Retorna null si no se encontró la carpeta
+    return null;
   }
 
-  // SUBIDA DE ARCHIVO
+  /// === SUBIDA DE UN ARCHIVO A UNA CARPETA ===
+  /// folderId: ID de la carpeta destino
+  /// filePath: path local al archivo de audio
+  /// fileName: nombre del archivo de audio
   Future<String?> uploadFile(String folderId, String filePath, String fileName) async {
-    final url = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+    // Obtenemos headers para autenticación
     final headers = await getAuthHeaders2();
 
+    // Construimos la petición para subir un archivo de tipo multipart
+    // Multipart es un tipo de medio definido en HTTP para subir archivos u otros datos
+    final url = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+
+    // Obtenemos el archivo y su tamaño en bytes
     var file = File(filePath);
     var fileBytes = await file.readAsBytes();
 
-    // Detectar el tipo MIME del archivo (ejemplo: audio/mpeg para MP3)
+    // Detectamos el tipo MIME del archivo (ejemplo: audio/mpeg para MP3)
     String? mimeType = lookupMimeType(filePath); // ?? 'audio/mpeg';
 
     // Si el MIME no se detecta correctamente, lo forzamos a un tipo de audio válido
@@ -86,15 +102,17 @@ class DriveService {
       mimeType = "audio/mpeg"; // Asumimos MP3 por defecto
     }
 
-    debugPrint("📂 Archivo: $fileName");
-    debugPrint("📑 Tipo MIME detectado: $mimeType");
+    debugPrint("Archivo: $fileName");
+    debugPrint("Tipo MIME detectado: $mimeType");
 
+    // Contruimos JSON con los metadatos necesarios
     var metadata = jsonEncode({
-      'name': fileName,
-      'parents': [folderId], // Subir el archivo a la carpeta especificada
-      'mimeType': mimeType, // Especificar el tipo de contenido
+      'name': fileName,       // Nombre del archivo
+      'parents': [folderId],  // ID de la carpeta destino
+      'mimeType': mimeType,   // Especificar el tipo de contenido
     });
 
+    // Contruimos la petición para subir el archivo
     var request = http.MultipartRequest('POST', Uri.parse(url))
       /*..headers['Authorization'] = 'Bearer $accessToken'
       ..headers['Content-Type'] = 'multipart/related; boundary=boundary';*/
@@ -105,14 +123,14 @@ class DriveService {
         'Content-Type': 'multipart/related; boundary=boundary',
       })
 
-      // Agregar los metadatos del archivo
+      // Añadimos los metadatos del archivo
       ..files.add(http.MultipartFile.fromString(
         'metadata',
         metadata,
         contentType: MediaType('application', 'json'),
       ))
 
-      // Agregar el archivo como datos binarios con el tipo MIME correcto
+      // Añadimos el archivo como datos binarios con el tipo MIME correcto
       ..files.add(http.MultipartFile.fromBytes(
         'file',
         fileBytes,
@@ -120,20 +138,28 @@ class DriveService {
         contentType: MediaType.parse(mimeType), // Usa el tipo MIME detectado
       ));
 
+    // Enviamos la petición
     var response = await request.send();
 
     if (response.statusCode == 200 || response.statusCode == 201) {
+      // Si tenemos éxito obtenemos la respuesta en String y pasamos a JSON
       var responseData = await response.stream.bytesToString();
       var jsonResponse = jsonDecode(responseData);
+
       debugPrint("Archivo subido!, ID: ${jsonResponse['id']}");
-      return jsonResponse['id'] as String; // Devuelve el ID del archivo subido
+
+      // Devolvemos el ID del archivo subido
+      return jsonResponse['id'] as String;
     } else {
-      debugPrint("Error al subir archivo: ${await response.stream.bytesToString()}");
+      // Si no tenemos éxito devolvemos null
+      debugPrint("⚠️ Error al subir archivo: ${await response.stream.bytesToString()}");
+
       return null;
     }
   }
 
-  // CREACIÓN DE CARPETA
+  /// === CREACIÓN DE CARPETA ===
+  /// folderName: nombre de la carpeta destino
   Future<String?> createFolder(String folderName) async {
     debugPrint('Buscando carpeta...');
 
@@ -173,7 +199,7 @@ class DriveService {
       listAllFolders();*/
       return data['id']; // Retorna el ID de la carpeta creada
     } else {
-      debugPrint("Error al crear carpeta: ${response.body}");
+      debugPrint("⚠️ Error al crear carpeta: ${response.body}");
       return null;
     }
   }
@@ -236,7 +262,7 @@ class DriveService {
         };
       }).toList();
     } else {
-      debugPrint("Error al obtener archivos: ${response.body}");
+      debugPrint("⚠️ Error al obtener archivos: ${response.body}");
       return null;
     }
   }
@@ -265,7 +291,7 @@ class DriveService {
     if (response.statusCode == 200 || response.statusCode == 204) {
       debugPrint("Archivo $fileId ahora es público.");
     } else {
-      debugPrint("Error al hacer público el archivo: ${response.body}");
+      debugPrint("⚠️ Error al hacer público el archivo: ${response.body}");
     }
   }
 
@@ -278,7 +304,7 @@ class DriveService {
     final permissionsResp = await http.get(permissionsUrl, headers: headers);
 
     if (permissionsResp.statusCode != 200) {
-      debugPrint("No se pudieron obtener los permisos: ${permissionsResp.body}");
+      debugPrint("⚠️ No se pudieron obtener los permisos: ${permissionsResp.body}");
       return;
     }
 
@@ -303,7 +329,7 @@ class DriveService {
     if (deleteResp.statusCode == 204) {
       debugPrint("Permiso público revocado correctamente.");
     } else {
-      debugPrint("Error al revocar permiso: ${deleteResp.body}");
+      debugPrint("⚠️ Error al revocar permiso: ${deleteResp.body}");
     }
   }
 
@@ -333,7 +359,7 @@ class DriveService {
       debugPrint('Se ha descargado correctamente el audio');
       return data['id'] as String;
     } else {
-      debugPrint('Error al copiar archivo: ${response.body}');
+      debugPrint('⚠️ Error al copiar archivo: ${response.body}');
       return null;
     }
   }
@@ -349,7 +375,7 @@ class DriveService {
       },
     );
     if (response.statusCode != 204) {
-      throw Exception('Error borrando archivo: ${response.body}');
+      throw Exception('⚠️ Error borrando archivo: ${response.body}');
     }
   }
 }

@@ -20,12 +20,12 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
 
-  late String username;
-  String? selectedAudio;
-  int currentAudioIdx = -1;
-  bool isPlaying = false;
-  bool isLoading = true;
-  bool panelHide = false;  // Para ocultar o no el panel de reproducción
+  late String username;           // Nombre de usuario de Google
+  String? selectedAudio;          // Audio seleccionado actualmente
+  int currentAudioIdx = -1;       // Índice del audio sonando actualmente
+  bool isPlaying = false;         // Audio sonando
+  bool isLoading = true;          // Para carga de la página
+  bool panelHide = false;         // Para ocultar o no el panel de reproducción
   final player = AudioPlayer();   // Instancia de reproductor de audio
 
   Duration duration = Duration.zero;  // Para el panel de reproducción
@@ -36,12 +36,10 @@ class _HomePageState extends State<HomePage> {
   //final TrackerService _tracker2Service = TrackerService("http://34.175.164.1:8080");
 
   List<TrackerService> trackers = [TrackerService("http://34.175.220.81:8080"), TrackerService("http://34.175.164.1:8080")];
-  List<Map<String, String>>? files;
-  Map<String, bool> filesShare = {}; // Map con estado de archivos compartidos
-  Map<String, bool> filesLike = {};  // Map con estado de archivos con Me gusta
+  List<Map<String, String>>? files;     // Lista de archivos
+  Map<String, bool> filesShare = {};    // Map con estado de archivos compartidos
+  Map<String, bool> filesLike = {};     // Map con estado de archivos con Me gusta
   Map<String, int> filesInTracker = {}; // Map con número de tracker de los archivos (0: ninguno, 1: tracker-1, 2: tracker-2)
-
-
 
   @override
   void initState() {
@@ -506,9 +504,21 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+
+      // BARRA SUPERIOR
       appBar: AppBar(
         title: const Text("P2P-Audio-Share"),
+        backgroundColor: Colors.green,
         actions: [
+
+          // ICONO DE SUBIDA
+          IconButton(
+            icon: const Icon(Icons.upload),
+            onPressed: _pickAndUploadFile,
+            tooltip: "Subir archivo",
+          ),
+
+          // ICONO DE BÚSQUEDA
           IconButton(
             icon: const Icon(Icons.search),   // Icono de búsqueda
             onPressed: () async {
@@ -516,19 +526,16 @@ class _HomePageState extends State<HomePage> {
                 context,
                 MaterialPageRoute(builder: (context) => const SearchPage()),
               );
+
+              // Volvemos a cargar los audios de Drive al volver
               _loadFiles();
             }
           ),
-          /*IconButton(
-            icon: const Icon(Icons.send),  // Icono para enviar
-              onPressed: () {
-
-              },
-          ),*/
         ],
       ),
       body: Stack(
           children: [
+            // Añadimos círculo de carga
             isLoading ? const Center(child: CircularProgressIndicator())
                 : files == null || files!.isEmpty ? const Center(child: Text("Aún no tienes audios para compartir"))
                 : ListView.builder(
@@ -537,23 +544,26 @@ class _HomePageState extends State<HomePage> {
                 final file = files![index];
                 final name = file['name'] ?? 'Archivo';
                 final fileId = file['id']!;
-                // Actualizamos map con estado de cada archivo
                 final isShared = filesShare[fileId] ?? false;
+
+                // LISTA DE AUDIOS DE DRIVE
                 return ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16.0,  // reduce el padding horizontal por defecto
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16.0,  // Reduce el padding horizontal por defecto
                   ),
                   title: Text(file['name'] ?? "Archivo"),
                   leading: const Icon(Icons.music_note),
                   onTap: () => _playAudio(index),
                   onLongPress: () => _confirmDelete(fileId, name),
                   trailing: Row(
-                      mainAxisSize: MainAxisSize.min,  // muy importante para no obligar al Row a ocupar todo el ancho
+                      mainAxisSize: MainAxisSize.min,  // Muy importante para no obligar al Row a ocupar todo el ancho
                       children: [
                         Padding(
-                          padding: const EdgeInsets.only(right: 20.0),  // espacio extra al botón
+                          padding: const EdgeInsets.only(right: 20.0),  // Espacio extra al botón
                           child: SizedBox(
                             width: 36,
                             height: 36,
+
+                            // BOTÓN DE COMPARTIR
                             child: ElevatedButton(
                               onPressed: () => _toggleShare(fileId, name),
                               style: ElevatedButton.styleFrom(
@@ -569,7 +579,7 @@ class _HomePageState extends State<HomePage> {
                           ),
                         ),
 
-                        // Botón de Like
+                        // BOTÓN DE LIKE
                         SizedBox(
                           width: 36,
                           height: 36,
@@ -588,6 +598,7 @@ class _HomePageState extends State<HomePage> {
                 );
               },
             ),
+
             // PANEL DE REPRODUCCIÓN
             if (selectedAudio != null)
               Positioned(
@@ -606,6 +617,8 @@ class _HomePageState extends State<HomePage> {
                       Row(
                         // mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
+
+                          // BOTÓN DE DESPLIEGUE/PLIEGUE
                           IconButton(
                             icon: Icon(
                               panelHide ? Icons.expand_more : Icons.expand_less,
@@ -624,6 +637,8 @@ class _HomePageState extends State<HomePage> {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
+
+                          // BOTÓN DE PLAY/PAUSE
                           IconButton(
                             icon: Icon(
                               isPlaying ? Icons.pause : Icons.play_arrow,
@@ -631,10 +646,14 @@ class _HomePageState extends State<HomePage> {
                             ),
                             onPressed: _togglePlayPause,
                           ),
+
+                          // BOTÓN DE ANTERIOR
                           IconButton(
                             icon: const Icon(Icons.skip_previous, color: Colors.white),
                             onPressed: _playPrevious,
                           ),
+
+                          // BOTÓN DE SIGUIENTE
                           IconButton(
                             icon: const Icon(Icons.skip_next, color: Colors.white),
                             onPressed: _playNext,
@@ -682,7 +701,7 @@ class _HomePageState extends State<HomePage> {
               ),
           ],
       ),
-      floatingActionButton: Padding(
+      /*floatingActionButton: Padding(
         padding: const EdgeInsets.only(bottom: 120.0),
         child: FloatingActionButton(   // Botón para subir audio
           onPressed: _pickAndUploadFile,
@@ -690,7 +709,7 @@ class _HomePageState extends State<HomePage> {
           child: const Icon(Icons.upload),
         ),
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.startDocked,
+      floatingActionButtonLocation: FloatingActionButtonLocation.startDocked,*/
     );
   }
 
