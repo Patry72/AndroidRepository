@@ -21,24 +21,27 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
 
   late String username;
-  final player = AudioPlayer();   // Instancia de reproductor de audio
   String? selectedAudio;
   int currentAudioIdx = -1;
   bool isPlaying = false;
   bool isLoading = true;
   bool panelHide = false;  // Para ocultar o no el panel de reproducción
+  final player = AudioPlayer();   // Instancia de reproductor de audio
+
+  Duration duration = Duration.zero;  // Para el panel de reproducción
+  Duration position = Duration.zero;  // Para el panel de reproducción
 
   final DriveService _driveService = DriveService();
-  final TrackerService _tracker1Service = TrackerService("http://34.175.220.81:8080");
-  final TrackerService _tracker2Service = TrackerService("http://34.175.127.228:8080");
+  //final TrackerService _tracker1Service = TrackerService("http://34.175.220.81:8080");
+  //final TrackerService _tracker2Service = TrackerService("http://34.175.164.1:8080");
 
+  List<TrackerService> trackers = [TrackerService("http://34.175.220.81:8080"), TrackerService("http://34.175.164.1:8080")];
   List<Map<String, String>>? files;
   Map<String, bool> filesShare = {}; // Map con estado de archivos compartidos
   Map<String, bool> filesLike = {};  // Map con estado de archivos con Me gusta
   Map<String, int> filesInTracker = {}; // Map con número de tracker de los archivos (0: ninguno, 1: tracker-1, 2: tracker-2)
 
-  Duration duration = Duration.zero;  // Para el panel de reproducción
-  Duration position = Duration.zero;  // Para el panel de reproducción
+
 
   @override
   void initState() {
@@ -79,8 +82,8 @@ class _HomePageState extends State<HomePage> {
     final fileList = await _driveService.listFilesInFolder(widget.folderId);
 
     // Obtenemos los audios que tenemos compartiendo
-    final sharedIds1 = await _tracker1Service.getMySharedAudiosId(username);
-    final sharedIds2 = await _tracker2Service.getMySharedAudiosId(username);
+    final sharedIds1 = await trackers[0].getMySharedAudiosId(username);
+    final sharedIds2 = await trackers[1].getMySharedAudiosId(username);
 
     setState(() {
       files = fileList;
@@ -182,7 +185,9 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _registerToTracker(String fileId, String fileName, int trackerNumber) async {
-    final servicio = (trackerNumber == 1) ? _tracker1Service : _tracker2Service;
+    //final servicio = (trackerNumber == 1) ? _tracker1Service : _tracker2Service;
+    final servicio = trackers[trackerNumber - 1];
+    //final servicio = _tracker1Service;
     // Llamamos a _sendToTracker, que hará registerUser con action="register"
     await _sendToTracker(fileId, fileName, servicio);
     setState(() {
@@ -192,7 +197,9 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _unregisterFromTracker(String fileId, String fileName, int trackerNumber) async {
-    final servicio = (trackerNumber == 1) ? _tracker1Service : _tracker2Service;
+    //final servicio = (trackerNumber == 1) ? _tracker1Service : _tracker2Service;
+    final servicio = trackers[trackerNumber - 1];
+    //final servicio = _tracker1Service;
     // Para desregistrar, llamamos exactamente al mismo _sendToTracker,
     // porque él detecta que filesShare[fileId] es true y hará action="unregister".
     await _sendToTracker(fileId, fileName, servicio);
@@ -312,26 +319,34 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _confirmDelete(String fileId, String fileName) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text('Eliminar "$fileName"'),
-        content: const Text('¿Estás seguro de eliminar este audio?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _deleteFile(fileId, fileName);
-            },
-            child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
+    if (filesShare[fileId] == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se puede eliminar un archivo que se está compartiendo')),
+      );
+    } else {
+      showDialog(
+        context: context,
+        builder: (_) =>
+            AlertDialog(
+              title: Text('Eliminar "$fileName"'),
+              content: const Text('¿Estás seguro de eliminar este audio?'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancelar'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _deleteFile(fileId, fileName);
+                  },
+                  child: const Text(
+                      'Eliminar', style: TextStyle(color: Colors.red)),
+                ),
+              ],
+            ),
+      );
+    }
   }
 
   // PLAY A SELECTED AUDIO
