@@ -35,7 +35,8 @@ class _HomePageState extends State<HomePage> {
   //final TrackerService _tracker1Service = TrackerService("http://34.175.220.81:8080");
   //final TrackerService _tracker2Service = TrackerService("http://34.175.164.1:8080");
 
-  List<TrackerService> trackers = [TrackerService("http://34.175.220.81:8080"), TrackerService("http://34.175.164.1:8080")];
+  //List<TrackerService> trackers = [TrackerService("http://34.175.220.81:8080"), TrackerService("http://34.175.164.1:8080")];
+  late List<TrackerService> trackers;
   List<Map<String, String>>? files;     // Lista de archivos
   Map<String, bool> filesShare = {};    // Map con estado de archivos compartidos
   Map<String, bool> filesLike = {};     // Map con estado de archivos con Me gusta
@@ -44,7 +45,9 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    // Inicializamos el nombre de usuario y la lista de trackers
     username = widget.username;
+    trackers = [TrackerService("http://34.175.220.81:8080"), TrackerService("http://34.175.164.1:8080")];
 
     // Restaura estado previo
     _loadPrevState();

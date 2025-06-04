@@ -24,9 +24,13 @@ class _SearchPageState extends State<SearchPage> {
 
   // LOAD ALL SHARED AUDIOS IN NETWORK
   Future<void> _loadAudios() async {
+    // Obtenemos todos los audios que se están compartiendo
     final audios = await _trackerService.getSharedAudios();
+
     debugPrint("Audios compartiendo: ${audios.length}");
+
     setState(() {
+      // Inicializamos los audios compartiendo
       allAudios = audios;
       //filteredAudios = audios;
     });
@@ -34,8 +38,12 @@ class _SearchPageState extends State<SearchPage> {
 
   void _filterAudios(String query) {
     debugPrint("Filtrando audios: $query");
-    filteredAudios.clear(); // Limpiar resultados anteriores
+
+    // Limpiamos resulatdos anteriores
+    filteredAudios.clear();
+
     setState(() {
+      // Filtramos por las palabras de búsqueda
       filteredAudios = allAudios
           .where((audio) => audio.name.toLowerCase().contains(query.toLowerCase()))
           .toList();
