@@ -4,7 +4,9 @@ import '../Services/tracker_service.dart';
 import '../Services/drive_service.dart';
 
 class SearchPage extends StatefulWidget {
-  const SearchPage({super.key});
+  final List<TrackerService> trackers;
+
+  const SearchPage({super.key, required this.trackers});
 
   @override
   State<SearchPage> createState() => _SearchPageState();
@@ -13,17 +15,19 @@ class SearchPage extends StatefulWidget {
 class _SearchPageState extends State<SearchPage> {
   final TrackerService _trackerService = TrackerService("http://34.175.220.81:8080"); // De momento sólo busca en tracker-1
   final DriveService _driveService = DriveService();
-  List<SharedAudio> allAudios = [];
+  //List<SharedAudio> allAudios = [];
   List<SharedAudio> filteredAudios = [];
 
   @override
   void initState() {
     super.initState();
-    _loadAudios();
+    //_loadAudios();
   }
 
+
+
   // LOAD ALL SHARED AUDIOS IN NETWORK
-  Future<void> _loadAudios() async {
+  /*Future<void> _loadAudios() async {
     // Obtenemos todos los audios que se están compartiendo
     final audios = await _trackerService.getSharedAudios();
 
@@ -34,20 +38,34 @@ class _SearchPageState extends State<SearchPage> {
       allAudios = audios;
       //filteredAudios = audios;
     });
-  }
+  }*/
 
-  void _filterAudios(String query) {
+  void _filterAudios(String query) async {
     debugPrint("Filtrando audios: $query");
+    debugPrint("query empty?: ${query.isEmpty}");
 
     // Limpiamos resulatdos anteriores
     filteredAudios.clear();
 
-    setState(() {
+    try {
+      final results = await widget.trackers[0].searchAudios(query);
+      setState(() {
+        filteredAudios = results;
+        debugPrint("tamaño de filteredAudios: ${filteredAudios.length}");
+      });
+    } catch (e) {
+      debugPrint("Error al buscar audios: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Error al buscar audios")),
+      );
+    }
+
+    /*setState(() {
       // Filtramos por las palabras de búsqueda
       filteredAudios = allAudios
           .where((audio) => audio.name.toLowerCase().contains(query.toLowerCase()))
           .toList();
-    });
+    });*/
 
   }
 

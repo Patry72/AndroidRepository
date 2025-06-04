@@ -527,7 +527,7 @@ class _HomePageState extends State<HomePage> {
             onPressed: () async {
               await Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const SearchPage()),
+                MaterialPageRoute(builder: (context) => SearchPage(trackers: trackers)),
               );
 
               // Volvemos a cargar los audios de Drive al volver

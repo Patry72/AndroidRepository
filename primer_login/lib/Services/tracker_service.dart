@@ -39,7 +39,7 @@ class TrackerService {
   }
 
   Future<List<String>> getMySharedAudiosId(String user) async {
-    final uri = Uri.parse('$trackerUrl/shared')
+    final uri = Uri.parse('$trackerUrl/shared') // Probar a cambiar a myShared para no confundir con el siguiente método
         .replace(queryParameters: {'owner': user});
 
     final resp = await http.get(uri);
@@ -56,7 +56,7 @@ class TrackerService {
     }
   }
 
-  // GET ALL SHARED AUDIOS IN NETWORK
+  // GET ALL SHARED AUDIOS IN NETWORK --> SE PODRÍA ELIMINAR
   Future<List<SharedAudio>> getSharedAudios() async {
     final response = await http.get(Uri.parse('$trackerUrl/shared'));
 
@@ -67,6 +67,22 @@ class TrackerService {
     } else {
       debugPrint("Error al obtener audios compartidos: ${response.body}");
       return [];
+    }
+  }
+
+  // SEARCH AUDIOS
+  Future<List<SharedAudio>> searchAudios(String query) async {
+    debugPrint("Buscando audios en tracker...");
+
+    final uri = Uri.parse('$trackerUrl/search2?query=$query');
+    final response = await http.get(uri);
+
+    if (response.statusCode == 200) {
+      final List/*<dynamic>*/ body = jsonDecode(response.body);
+      debugPrint("resul de shared2: ${body.toString()}");
+      return body.map((json) => SharedAudio.fromJson(json)).toList();
+    } else {
+      throw Exception('Error al buscar audios');
     }
   }
 }
