@@ -13,7 +13,7 @@ class SearchPage extends StatefulWidget {
 }
 
 class _SearchPageState extends State<SearchPage> {
-  final TrackerService _trackerService = TrackerService("http://34.175.220.81:8080"); // De momento sólo busca en tracker-1
+  //final TrackerService _trackerService = TrackerService("http://34.175.220.81:8080"); // De momento sólo busca en tracker-1
   final DriveService _driveService = DriveService();
   //List<SharedAudio> allAudios = [];
   List<SharedAudio> filteredAudios = [];
@@ -47,8 +47,13 @@ class _SearchPageState extends State<SearchPage> {
     // Limpiamos resulatdos anteriores
     filteredAudios.clear();
 
+    // Obtenemos tracker más cercano
+    final int bestTracker = await _findTracker();
+
+    debugPrint('Conectando al tracker ${bestTracker+1}');
+
     try {
-      final results = await widget.trackers[0].searchAudios(query);
+      final results = await widget.trackers[bestTracker].searchAudios(query);
       setState(() {
         filteredAudios = results;
         debugPrint("tamaño de filteredAudios: ${filteredAudios.length}");
@@ -67,6 +72,40 @@ class _SearchPageState extends State<SearchPage> {
           .toList();
     });*/
 
+  }
+
+  Future<int> _findTracker() async {
+    List<int> latencies = [];
+
+    // Medimos la latencia a cada tracker
+    //final ping1 = widget.trackers[0].findTracker();
+    //final ping2 = widget.trackers[1].findTracker();
+
+    // Esperamos ambos resultados
+    //latencies.add(await ping1);
+    //latencies.add(await ping2);
+    //latencies[0] = await widget.trackers[0].findTracker();
+    //latencies[1] = await widget.trackers[1].findTracker();
+
+    final results = await Future.wait([
+      widget.trackers[0].findTracker(),
+      widget.trackers[1].findTracker(),
+    ]);
+    latencies = results;
+
+    debugPrint('lat del tracker-1: ${latencies[0]}');
+    debugPrint('lat del tracker-2: ${latencies[1]}');
+
+    // Determinamos el orden de referencia
+    if (latencies[0] <= latencies[1]) {
+      debugPrint('mejor tracker-1');
+      // Si el tracker-1 es más cercano devolvemos su índice
+      return 0;
+    }
+    debugPrint('mejor tracker-2');
+
+    // Si no devolvemos el índice del tracker-2
+    return 1;
   }
 
   @override

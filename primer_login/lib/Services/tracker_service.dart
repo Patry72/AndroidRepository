@@ -85,5 +85,26 @@ class TrackerService {
       throw Exception('Error al buscar audios');
     }
   }
+
+  // PING A TRACKER
+  Future<int> findTracker() async {
+    final stopwatch = Stopwatch()..start();
+    debugPrint('Iniciando ping a $trackerUrl ...');
+    try {
+      final response = await http.get(Uri.parse('$trackerUrl/health')).timeout(Duration(milliseconds: 500));
+      stopwatch.stop();
+      if (response.statusCode == 200) {
+        debugPrint('Ping correcto!');
+        return stopwatch.elapsedMilliseconds;
+      } else {
+        debugPrint('⚠️ Error haciendo ping a $trackerUrl');
+        // Si no responde 200, devolvemos un valor grande
+        return 9999;
+      }
+    } catch (_) {
+      stopwatch.stop();
+      return 9999;
+    }
+  }
 }
 
