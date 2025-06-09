@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:http/http.dart' as http;
@@ -154,6 +155,72 @@ class DriveService {
       // Si no tenemos éxito devolvemos null
       debugPrint("⚠️ Error al subir archivo: ${await response.stream.bytesToString()}");
 
+      return null;
+    }
+  }
+
+  Future<String?> uploadFileFromLink(String downloadUrl, String newFileName, String destFolderId,) async {
+    // Paso 1: Descargar el archivo como bytes
+    final response = await http.get(Uri.parse(downloadUrl));
+    if (response.statusCode != 200) {
+      debugPrint('Error al descargar el archivo: ${response.body}');
+      return null;
+    }
+
+    // Paso 2: Autenticación para subida
+    final headers = await getAuthHeaders2();
+    final authToken = headers['Authorization'];
+
+    // Paso 3: Crear cuerpo multipart para subir a Drive
+    final metadata = {
+      'name': newFileName,
+      'parents': [destFolderId],
+    };
+
+    final boundary = 'boundary123456';
+    final body = <int>[]
+      ..addAll(utf8.encode('--$boundary\r\n'))
+      ..addAll(utf8.encode('Content-Type: application/json; charset=UTF-8\r\n\r\n'))
+      ..addAll(utf8.encode(jsonEncode(metadata)))
+      ..addAll(utf8.encode('\r\n--$boundary\r\n'))
+      ..addAll(utf8.encode('Content-Type: audio/mpeg\r\n\r\n'))
+      ..addAll(response.bodyBytes)
+      ..addAll(utf8.encode('\r\n--$boundary--'));
+
+    final uploadResponse = await http.post(
+      Uri.parse('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart'),
+      headers: {
+        'Authorization': authToken!,
+        'Content-Type': 'multipart/related; boundary=$boundary',
+      },
+      body: body,
+    );
+
+    if (uploadResponse.statusCode == 200) {
+      final data = jsonDecode(uploadResponse.body);
+      debugPrint('✅ Archivo subido con éxito');
+      return data['id'];
+    } else {
+      debugPrint('❌ Error al subir archivo: ${uploadResponse.body}');
+      return null;
+    }
+  }
+
+  Future<String?> getDownloadLink(String fileId) async {
+    final headers = await getAuthHeaders2();
+
+    final url = Uri.parse(
+        'https://www.googleapis.com/drive/v3/files/$fileId?fields=webContentLink,webViewLink');
+
+    final response = await http.get(url, headers: headers);
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      // webContentLink: para descarga directa
+      // webViewLink: para abrir en navegador
+      return data['webContentLink']; // Este es el enlace de descarga directa
+    } else {
+      debugPrint('❌ Error al obtener enlace: ${response.body}');
       return null;
     }
   }

@@ -161,7 +161,7 @@ class _SearchPageState extends State<SearchPage> {
                             title: Text(audio.name),
                             subtitle: Text('Compartido por: ${audio.owner}'),
                             onTap: () {
-                              debugPrint('Seleccionado: ${audio.name} desde ${audio.ip}');
+                              debugPrint('Seleccionado: ${audio.name}');
                             },
                           ),
                           Padding(
@@ -172,15 +172,19 @@ class _SearchPageState extends State<SearchPage> {
                               onPressed: () async {
                                 // Asume 'root' o la carpeta destino conocida
                                 final String? destinationFolderId = await _driveService.getFolderId("P2P-Audio-Share");
-                                final newId = await _driveService.copyFile(
+                                /*final newId = await _driveService.copyFile(
                                   audio.fileId,
                                   destinationFolderId,
                                   audio.name,
+                                );*/
+                                final String? downloaded = await _driveService.uploadFileFromLink(
+                                    audio.link, audio.name, destinationFolderId!
                                 );
-                                if (newId != null) {
+
+                                if (downloaded != null) {
                                   // Notificación en pantalla
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Archivo descargado con ID: $newId')),
+                                    SnackBar(content: Text('Archivo descargado!')),
                                   );
                                 } else {
                                   ScaffoldMessenger.of(context).showSnackBar(

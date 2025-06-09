@@ -140,8 +140,12 @@ class _HomePageState extends State<HomePage> {
     }
   }*/
 
-  void _toggleShare(String fileId, String fileName) {
+  Future<void> _toggleShare(String fileId, String fileName) async {
     final int state = filesInTracker[fileId] ?? 0;
+
+    final link = await _driveService.getDownloadLink(fileId);
+
+    debugPrint('link de descarga: $link');
 
     // Si aún no está registrado en ningún tracker, pregunta
     if (state == 0) {
@@ -155,14 +159,16 @@ class _HomePageState extends State<HomePage> {
               TextButton(
                 onPressed: () {
                   Navigator.of(context).pop();
-                  _registerToTracker(fileId, fileName, 1);
+                  _registerToTracker(fileId, fileName, link!, 1);
+                  _driveService.makeFilePublic(fileId);
                 },
                 child: const Text("Tracker-1"),
               ),
               TextButton(
                 onPressed: () {
                   Navigator.of(context).pop();
-                  _registerToTracker(fileId, fileName, 2);
+                  _registerToTracker(fileId, fileName, link!, 2);
+                  _driveService.makeFilePublic(fileId);
                 },
                 child: const Text("Tracker-2"),
               ),
@@ -178,39 +184,41 @@ class _HomePageState extends State<HomePage> {
       );
     // Si está registrado en tracker-1, lo desregistramos de tracker-1
     } else if (state == 1) {
-      _unregisterFromTracker(fileId, fileName, 1);
+      _unregisterFromTracker(fileId, fileName, link!, 1);
+      _driveService.revokePublicPermission(fileId);
     // Si está registrado en tracker-2, lo desregistramos de tracker-2
     } else if (state == 2) {
-      _unregisterFromTracker(fileId, fileName, 2);
+      _unregisterFromTracker(fileId, fileName, link!, 2);
+      _driveService.revokePublicPermission(fileId);
     }
   }
 
-  Future<void> _registerToTracker(String fileId, String fileName, int trackerNumber) async {
+  Future<void> _registerToTracker(String fileId, String fileName, String link, int trackerNumber) async {
     //final servicio = (trackerNumber == 1) ? _tracker1Service : _tracker2Service;
     final servicio = trackers[trackerNumber - 1];
     //final servicio = _tracker1Service;
     // Llamamos a _sendToTracker, que hará registerUser con action="register"
-    await _sendToTracker(fileId, fileName, servicio);
+    await _sendToTracker(fileId, fileName, link, servicio);
     setState(() {
       filesInTracker[fileId] = trackerNumber;
       filesShare[fileId] = true;
     });
   }
 
-  Future<void> _unregisterFromTracker(String fileId, String fileName, int trackerNumber) async {
+  Future<void> _unregisterFromTracker(String fileId, String fileName, String link, int trackerNumber) async {
     //final servicio = (trackerNumber == 1) ? _tracker1Service : _tracker2Service;
     final servicio = trackers[trackerNumber - 1];
     //final servicio = _tracker1Service;
     // Para desregistrar, llamamos exactamente al mismo _sendToTracker,
     // porque él detecta que filesShare[fileId] es true y hará action="unregister".
-    await _sendToTracker(fileId, fileName, servicio);
+    await _sendToTracker(fileId, fileName, link, servicio);
     setState(() {
       filesInTracker[fileId] = 0;
       filesShare[fileId] = false;
     });
   }
 
-  Future<void> _sendToTracker(String fileId, String fileName, TrackerService tracker) async {
+  Future<void> _sendToTracker(String fileId, String fileName, String link, TrackerService tracker) async {
     final currentlyShared = filesShare[fileId] ?? false;
     final action = currentlyShared ? "unregister" : "register";
 
@@ -218,8 +226,8 @@ class _HomePageState extends State<HomePage> {
       /// Llamamos al método del servicio, pasándole:
       /// - user: username
       /// - action: "register" o "unregister"
-      /// - fileId, fileName
-      await tracker.registerUser(username, action, fileId, fileName);
+      /// - fileId, fileName, link
+      await tracker.registerUser(username, action, fileId, fileName, link);
 
       // Si no hubo excepción, consideramos que el tracker respondió OK (200) internamente
       setState(() {

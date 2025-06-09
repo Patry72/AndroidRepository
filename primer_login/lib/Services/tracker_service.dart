@@ -11,7 +11,7 @@ class TrackerService {
   TrackerService(this.trackerUrl);
 
   // REGISTER AN USER
-  Future<void> registerUser(String name, String action, String fileId, String fileName) async {
+  Future<void> registerUser(String name, String action, String fileId, String fileName, String link) async {
     try {
       final response = await http.post(
         Uri.parse('$trackerUrl/register'),
@@ -20,7 +20,8 @@ class TrackerService {
           "name": name,
           "action": action,
           "fileId": fileId,
-          "filename": fileName
+          "filename": fileName,
+          "link": link
         }),
       );
 
