@@ -6,9 +6,11 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:google_sign_in/google_sign_in.dart';  // Para autenticacióncon Google
 import 'package:mime/mime.dart';                      // Para detectar MIME types
+import 'auth_service.dart';
 
 class DriveService {
-  final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: ['https://www.googleapis.com/auth/drive.file',]);
+  //final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: ['https://www.googleapis.com/auth/drive.file',]);
+  final AuthService _authService = AuthService();
 
   /// === OBTENCIÓN DE TOKEN (PARA ACCESO A ARCHIVO) --> NO LO USO ===
   Future<Map<String, String>> getAuthHeaders() async {
@@ -21,20 +23,25 @@ class DriveService {
     };
   }
 
-  /// === OBTENCIÓN DE HEADERS DE AUTENTICACIÓN ===
-  Future<Map<String, String>> getAuthHeaders2() async {
+  /// =============================================
+  ///     OBTENCIÓN DE HEADERS DE AUTENTICACIÓN
+  /// =============================================
+  /*Future<Map<String, String>> getAuthHeaders2() async {
     final account = await _googleSignIn.signIn();
     final auth = await account?.authentication;
     return {
       'Authorization': 'Bearer ${auth?.accessToken}'
     };
-  }
+  }*/
 
-  /// === OBTENCIÓN DE ID DE CARPETA POR NOMBRE ===
+  /// =============================================
+  ///     OBTENCIÓN DE ID DE CARPETA POR NOMBRE
+  ///
   /// folderName: nombre de la carpeta a buscar
+  /// =============================================
   Future<String?> getFolderId(String folderName/*, final googleAuth*/) async {
     // Obtenemos headers para autenticación
-    final headers = await getAuthHeaders2();
+    final headers = await _authService.getAuthHeaders2();
 
     // Construimos la petición para buscar carpetas cuyo nombre coincida con "folderName" y no estén en la Papelera
     final query = Uri.encodeComponent('name = "$folderName" and mimeType = "application/vnd.google-apps.folder" and trashed = false');
@@ -59,7 +66,7 @@ class DriveService {
 
       if (files.isNotEmpty) {
         for (var file in files) {
-          debugPrint("Carpeta encontrada: ${file['name']} (ID: ${file['id']})");
+          debugPrint("✅ Carpeta encontrada: ${file['name']} (ID: ${file['id']})");
 
           // Verificar si la carpeta realmente está en la raíz de Drive
           if (file.containsKey('parents')) {
@@ -73,18 +80,21 @@ class DriveService {
     }
 
     // Si no tenemos éxito devolvemos null
-    debugPrint("⚠️ Error al buscar carpeta: ${response.body}");
+    debugPrint("❌ Error al buscar carpeta: ${response.body}");
 
     return null;
   }
 
-  /// === SUBIDA DE UN ARCHIVO A UNA CARPETA ===
+  /// ==========================================
+  ///     SUBIDA DE UN ARCHIVO A UNA CARPETA
+  ///
   /// folderId: ID de la carpeta destino
   /// filePath: path local al archivo de audio
   /// fileName: nombre del archivo de audio
+  /// ==========================================
   Future<String?> uploadFile(String folderId, String filePath, String fileName) async {
     // Obtenemos headers para autenticación
-    final headers = await getAuthHeaders2();
+    final headers = await _authService.getAuthHeaders2();
 
     // Construimos la petición para subir un archivo de tipo multipart
     // Multipart es un tipo de medio definido en HTTP para subir archivos u otros datos
@@ -115,10 +125,6 @@ class DriveService {
 
     // Contruimos la petición para subir el archivo
     var request = http.MultipartRequest('POST', Uri.parse(url))
-      /*..headers['Authorization'] = 'Bearer $accessToken'
-      ..headers['Content-Type'] = 'multipart/related; boundary=boundary';*/
-      /*..fields['metadata'] = jsonEncode(metadata)
-      ..files.add(http.MultipartFile.fromBytes('file', fileBytes, filename: fileName, contentType: MediaType.parse(mimeType)));*/
       ..headers.addAll({
         ...headers,
         'Content-Type': 'multipart/related; boundary=boundary',
@@ -143,35 +149,41 @@ class DriveService {
     var response = await request.send();
 
     if (response.statusCode == 200 || response.statusCode == 201) {
-      // Si tenemos éxito obtenemos la respuesta en String y pasamos a JSON
+      // Si tenemos éxito obtenemos la respuesta en String y pasamos a JSON y devolvemos el ID del archivo
       var responseData = await response.stream.bytesToString();
       var jsonResponse = jsonDecode(responseData);
 
-      debugPrint("Archivo subido!, ID: ${jsonResponse['id']}");
+      debugPrint("✅ Archivo subido!, ID: ${jsonResponse['id']}");
 
-      // Devolvemos el ID del archivo subido
       return jsonResponse['id'] as String;
     } else {
       // Si no tenemos éxito devolvemos null
-      debugPrint("⚠️ Error al subir archivo: ${await response.stream.bytesToString()}");
+      debugPrint("❌ Error al subir archivo: ${await response.stream.bytesToString()}");
 
       return null;
     }
   }
 
+  /// =============================================
+  ///    SUBIDA DE ARCHIVO DESDE ENLACE PÚBLICO
+  ///
+  /// downloadUrl: enlace público al archivo
+  /// newFileName: nombre que tendrá el archivo una vez subido
+  /// destFolderId: ID de la carpeta de destino
+  /// =============================================
   Future<String?> uploadFileFromLink(String downloadUrl, String newFileName, String destFolderId,) async {
-    // Paso 1: Descargar el archivo como bytes
+    // Descargamos el archivo como bytes
     final response = await http.get(Uri.parse(downloadUrl));
     if (response.statusCode != 200) {
       debugPrint('Error al descargar el archivo: ${response.body}');
       return null;
     }
 
-    // Paso 2: Autenticación para subida
-    final headers = await getAuthHeaders2();
+    // Obtenemos autenticación para la subida
+    final headers = await _authService.getAuthHeaders2();
     final authToken = headers['Authorization'];
 
-    // Paso 3: Crear cuerpo multipart para subir a Drive
+    // Creamos el cuerpo multipart para la subida
     final metadata = {
       'name': newFileName,
       'parents': [destFolderId],
@@ -187,6 +199,7 @@ class DriveService {
       ..addAll(response.bodyBytes)
       ..addAll(utf8.encode('\r\n--$boundary--'));
 
+    // Enviamos la petición de subida
     final uploadResponse = await http.post(
       Uri.parse('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart'),
       headers: {
@@ -197,54 +210,69 @@ class DriveService {
     );
 
     if (uploadResponse.statusCode == 200) {
+      // Si tenemos éxito devolvemos el id del archivo
       final data = jsonDecode(uploadResponse.body);
+
       debugPrint('✅ Archivo subido con éxito');
+
       return data['id'];
     } else {
+      // Si ni tenemos éxito devolvemos null
       debugPrint('❌ Error al subir archivo: ${uploadResponse.body}');
+
       return null;
     }
   }
 
   Future<String?> getDownloadLink(String fileId) async {
-    final headers = await getAuthHeaders2();
+    // Obtenemos headers para autenticación
+    final headers = await _authService.getAuthHeaders2();
 
     final url = Uri.parse(
         'https://www.googleapis.com/drive/v3/files/$fileId?fields=webContentLink,webViewLink');
 
+    // Enviamos la petición de descarga
     final response = await http.get(url, headers: headers);
 
     if (response.statusCode == 200) {
+      // Si tenemos éxito devolvemos el enlace público del archivo
       final data = jsonDecode(response.body);
-      // webContentLink: para descarga directa
-      // webViewLink: para abrir en navegador
-      return data['webContentLink']; // Este es el enlace de descarga directa
+      debugPrint('✅ Enlace obtenido con éxito!');
+
+      return data['webContentLink'];  // webContentLink: para descarga directa, webViewLink: para abrir en navegador
     } else {
+      // Si no tenemos éxito devolvemos null
       debugPrint('❌ Error al obtener enlace: ${response.body}');
+
       return null;
     }
   }
 
-  /// === CREACIÓN DE CARPETA ===
+  /// ===========================
+  ///     CREACIÓN DE CARPETA
+  ///
   /// folderName: nombre de la carpeta destino
+  /// ===========================
   Future<String?> createFolder(String folderName) async {
     debugPrint('Buscando carpeta...');
 
-    // Primero, verificar si la carpeta ya existe
+    // Primero, verificamos si la carpeta ya existe
     String? existingFolderId = await getFolderId(folderName);
+
     if (existingFolderId != null) {
       debugPrint("La carpeta ya existe en Drive con ID: $existingFolderId");
+
       return existingFolderId; // Retorna el ID de la carpeta existente
     }
 
-    debugPrint('Creando carpeta...');
+    //debugPrint('Creando carpeta...');
 
-    //final accessToken = googleAuth.accessToken;
-    //final url = 'https://www.googleapis.com/drive/v3/files';
+    // Obtenemos los headers para la autenticación
+    final headers = await _authService.getAuthHeaders2();
 
-    final headers = await getAuthHeaders2();
     final url = Uri.parse('https://www.googleapis.com/drive/v3/files');
 
+    // Enviamos la petición de creación
     final response = await http.post(
       url,
       headers: {
@@ -259,14 +287,15 @@ class DriveService {
     );
 
     if (response.statusCode == 200 || response.statusCode == 201) {
+      // Si tenemos éxito pasamos la respuesta a JSON y devolvemos el ID de la carpeta
       final data = jsonDecode(response.body);
-      //folderId = data['id'];
-      debugPrint("Carpeta creada, ID: ${data['id']}");
-      /*print('Mostrando carpetas nuevas...');
-      listAllFolders();*/
-      return data['id']; // Retorna el ID de la carpeta creada
+
+      debugPrint("✅ Carpeta creada, ID: ${data['id']}");
+
+      return data['id'];
     } else {
-      debugPrint("⚠️ Error al crear carpeta: ${response.body}");
+      // Si no tenemos éxito devolvemos null
+      debugPrint("❌ Error al crear carpeta: ${response.body}");
       return null;
     }
   }
@@ -301,15 +330,18 @@ class DriveService {
     }
   }*/
 
-
-  // LISTADO DE ARCHIVOS
+  /// ===========================
+  ///     LISTADO DE ARCHIVOS
+  /// folderId: ID de la carpeta de archivos
+  /// ===========================
   Future<List<Map<String, String>>?> listFilesInFolder(String folderId) async {
+    // Obtenemos headers para la autenticación
+    final headers = await _authService.getAuthHeaders2();
 
-    final headers = await getAuthHeaders2();
-    //final url = Uri.parse('https://www.googleapis.com/drive/v3/files?q="$folderId"+in+parents&fields=files(id,name)');
     final query = Uri.encodeComponent('"$folderId" in parents and trashed = false');
     final url = Uri.parse('https://www.googleapis.com/drive/v3/files?q=$query&fields=files(id,name)');
 
+    // Enviamos la petición de listado
     final response = await http.get(
       url,
       headers: {
@@ -319,17 +351,22 @@ class DriveService {
     );
 
     if (response.statusCode == 200) {
+      // Si tenemos éxito pasamos la respuesta a JSON y devolvemos una lista con los archivos
       final data = jsonDecode(response.body);
       final List files = data['files'] as List;
 
+      debugPrint('✅ Archivos encontrados en carpeta con éxito!');
+
       return files.map((file) {
         return {
+          // Devolvemos el ID y el nombre
           'id': file['id'].toString(),
           'name': file['name'].toString(),
         };
       }).toList();
     } else {
-      debugPrint("⚠️ Error al obtener archivos: ${response.body}");
+      // Si no tenemos éxito devolvemos null
+      debugPrint("❌ Error al obtener archivos: ${response.body}");
       return null;
     }
   }
@@ -341,7 +378,7 @@ class DriveService {
 
   // HACER PÚBLICO UN ARCHIVO
   Future<void> makeFilePublic(String fileId) async {
-    final headers = await getAuthHeaders2();
+    final headers = await _authService.getAuthHeaders2();
 
     final response = await http.post(
       Uri.parse('https://www.googleapis.com/drive/v3/files/$fileId/permissions'),
@@ -364,7 +401,7 @@ class DriveService {
 
   // REVOCAR PERMISOS PÚBLICO DE UN ARCHIVO
   Future<void> revokePublicPermission(String fileId) async {
-    final headers = await getAuthHeaders2();
+    final headers = await _authService.getAuthHeaders2();
 
     // Paso 1: obtener todos los permisos del archivo
     final permissionsUrl = Uri.parse('https://www.googleapis.com/drive/v3/files/$fileId/permissions');
@@ -405,7 +442,7 @@ class DriveService {
   // destFolderId: ID de la carpeta destino (P2P-Audio-Share)
   // newName: nombre del audio
   Future<String?> copyFile(String fileId, String? destFolderId, String newName) async {
-    final headers = await getAuthHeaders2();
+    final headers = await _authService.getAuthHeaders2();
     final url = Uri.parse('https://www.googleapis.com/drive/v3/files/$fileId/copy');
     final body = jsonEncode({
       'name': newName,
@@ -433,7 +470,7 @@ class DriveService {
 
   // ELIMINACIÓN DE UN AUDIO
   Future<void> deleteFile(String fileId) async {
-    final headers = await getAuthHeaders2();
+    final headers = await _authService.getAuthHeaders2();
     final response = await http.delete(
       Uri.parse('https://www.googleapis.com/drive/v3/files/$fileId'),
       headers: {
@@ -443,6 +480,8 @@ class DriveService {
     );
     if (response.statusCode != 204) {
       throw Exception('⚠️ Error borrando archivo: ${response.body}');
+    } else {
+      debugPrint('Se ha eliminado correctamente el audio');
     }
   }
 }

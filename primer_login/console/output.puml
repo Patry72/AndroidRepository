@@ -1,0 +1,149 @@
+@startuml
+left to right direction
+class MainApp {
+---
+build(): Widget
+}
+StatelessWidget <|-- MainApp
+class HomePage {
+---
+folderId: String
+username: String
+createState(): State<HomePage
+}
+StatefulWidget <|-- HomePage
+class _HomePageState {
+---
+username: String
+selectedAudio: String?
+currentAudioIdx: int
+isPlaying: bool
+isLoading: bool
+panelHide: bool
+player: null
+downloadedNotifier: ValueNotifier<bool>
+duration: Duration
+position: Duration
+-driveService: DriveService
+-authService: AuthService
+trackers: List<TrackerService>
+files: List<Map<String, String>>?
+filesShare: Map<String, bool>
+filesLike: Map<String, bool>
+filesInTracker: Map<String, int>
+initState(): void
+dispose(): void
+-_loadFiles(): void
+-_toggleLike(): void
+-_toggleShare(): void
+-_registerToTracker(): void
+-_unregisterFromTracker(): void
+-_sendToTracker(): void
+-_pickAndUploadFile(): void
+-_deleteFile(): void
+-_confirmSignOut(): void
+-_confirmDelete(): void
+-_playAudio(): void
+-_togglePlayPause(): void
+-_playNext(): void
+-_playPrevious(): void
+-_formatDuration(): String
+-_loadPrevState(): void
+-_savePrevPosition(): void
+-_saveAudioState(): void
+-_restoreAudioState(): void
+build(): Widget
+}
+State <|-- _HomePageState
+_HomePageState ..> ValueNotifier
+_HomePageState ..> DriveService
+_HomePageState ..> AuthService
+class LoginPage {
+---
+build(): Widget
+}
+StatelessWidget <|-- LoginPage
+class SearchPage {
+---
+trackers: List<TrackerService>
+downloadedNotif: ValueNotifier<bool>
+createState(): State<SearchPage
+}
+StatefulWidget <|-- SearchPage
+SearchPage ..> ValueNotifier
+class _SearchPageState {
+---
+isDownloading: bool
+downloadingFiles: Set<String>
+-driveService: DriveService
+-downloadService: DownloadService
+filteredAudios: List<SharedAudio>
+initState(): void
+-_filterAudios(): void
+-_findTracker(): int
+showDownloadNotification(): void
+build(): Widget
+}
+State <|-- _SearchPageState
+_SearchPageState ..> DriveService
+_SearchPageState ..> DownloadService
+class SharedAudio {
+---
+name: String
+fileId: String
+owner: String
+link: String
+}
+class AuthService {
+---
+-firebaseAuth: FirebaseAuth
+-googleSignIn: GoogleSignIn
+signInWithGoogle(): UserCredential
+signOut(): void
+getAuthHeaders2(): Map<String, String
+currentUser(): User?
+}
+AuthService ..> FirebaseAuth
+AuthService ..> GoogleSignIn
+class DownloadService {
+---
+-driveService: DriveService
+downloadAndNotify(): void
+-_showNotification(): void
+}
+DownloadService ..> DriveService
+class DriveService {
+---
+-authService: AuthService
+getAuthHeaders(): Map<String, String
+getFolderId(): String?
+uploadFile(): String?
+uploadFileFromLink(): String?
+getDownloadLink(): String?
+createFolder(): String?
+listFilesInFolder(): MapString, String[0..*]?
+getFileUrl(): String
+makeFilePublic(): void
+revokePublicPermission(): void
+copyFile(): String?
+deleteFile(): void
+}
+DriveService ..> AuthService
+class NotificationService {
+---
+plugin: FlutterLocalNotificationsPlugin
+requestNotificationPermission(): void
+init(): void
+}
+NotificationService ..> FlutterLocalNotificationsPlugin
+class TrackerService {
+---
+trackerUrl: String
+registerUser(): void
+sendToServerForAnalysis(): String
+getMySharedAudiosId(): String[0..*]
+getSharedAudios(): SharedAudio[0..*]
+searchAudios(): SharedAudio[0..*]
+findTracker(): int
+}
+@enduml

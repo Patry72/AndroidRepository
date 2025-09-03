@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../Resources/SharedAudio.dart';
 import '../Services/tracker_service.dart';
 import '../Services/drive_service.dart';
+import '../Services/notification_service.dart';
+import '../Services/download_service.dart';
+
 
 class SearchPage extends StatefulWidget {
   final List<TrackerService> trackers;
+  final ValueNotifier<bool> downloadedNotif;
 
-  const SearchPage({super.key, required this.trackers});
+  const SearchPage({super.key, required this.trackers, required this.downloadedNotif});
 
   @override
   State<SearchPage> createState() => _SearchPageState();
@@ -14,7 +19,10 @@ class SearchPage extends StatefulWidget {
 
 class _SearchPageState extends State<SearchPage> {
   //final TrackerService _trackerService = TrackerService("http://34.175.220.81:8080"); // De momento sólo busca en tracker-1
+  bool isDownloading = false;
+  Set<String> downloadingFiles = {};
   final DriveService _driveService = DriveService();
+  final DownloadService _downloadService = DownloadService();
   //List<SharedAudio> allAudios = [];
   List<SharedAudio> filteredAudios = [];
 
@@ -108,28 +116,51 @@ class _SearchPageState extends State<SearchPage> {
     return 1;
   }
 
+  Future<void> showDownloadNotification(String fileName) async {
+    const AndroidNotificationDetails androidPlatformChannelSpecifics =
+    AndroidNotificationDetails(
+      'download_channel',
+      'Descargas',
+      channelDescription: 'Notificaciones de descarga de audio',
+      importance: Importance.high,
+      priority: Priority.high,
+    );
+
+    const NotificationDetails platformChannelSpecifics =
+    NotificationDetails(android: androidPlatformChannelSpecifics);
+
+    await NotificationService.plugin.show(
+      0,
+      'Descarga completada',
+      'El archivo $fileName se ha descargado correctamente.',
+      platformChannelSpecifics,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Buscar audios")),
-      body: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Column(
-          children: [
-            TextField(
-              decoration: InputDecoration(
-                hintText: "Buscar...",
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8.0),
+      body: Stack(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Column(
+              children: [
+                TextField(
+                  decoration: InputDecoration(
+                    hintText: "Buscar...",
+                    prefixIcon: const Icon(Icons.search),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8.0),
+                    ),
+                  ),
+                  onSubmitted: _filterAudios,
                 ),
-              ),
-              onSubmitted: _filterAudios,
-            ),
-            const SizedBox(height: 10),
-            Expanded(
-              child: filteredAudios.isEmpty
-                  ? Center(
+                const SizedBox(height: 10),
+                Expanded(
+                  child: filteredAudios.isEmpty
+                      ? Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -140,7 +171,7 @@ class _SearchPageState extends State<SearchPage> {
                       ],
                     ),
                   )
-                  : ListView.builder(
+                      : ListView.builder(
                     itemCount: filteredAudios.length,
                     itemBuilder: (context, index) {
                       final audio = filteredAudios[index];
@@ -167,9 +198,55 @@ class _SearchPageState extends State<SearchPage> {
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 16.0),
                             child: ElevatedButton.icon(
-                              icon: const Icon(Icons.download_rounded),
-                              label: const Text('Descargar'),
-                              onPressed: () async {
+                              icon: downloadingFiles.contains(audio.fileId)
+                                  ? const SizedBox(
+                                height: 18,
+                                width: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              )
+                                  : const Icon(Icons.download_rounded),//const Icon(Icons.download_rounded),
+                              label: Text(downloadingFiles.contains(audio.fileId) ? 'Descargando...' : 'Descargar'),//const Text('Descargar'),
+                              onPressed: downloadingFiles.contains(audio.fileId)
+                                  ? null
+                                  : () {
+                                setState(() {
+                                  downloadingFiles.add(audio.fileId);
+                                });
+
+                                _downloadService.downloadAndNotify(
+                                  fileId: audio.fileId,
+                                  link: audio.link,
+                                  name: audio.name,
+                                  onStart: (_) {}, // Opcional, ya se agregó en el setState
+                                  onComplete: (id) {
+                                    if (mounted) {
+                                      setState(() {
+                                        downloadingFiles.remove(id);
+                                      });
+                                      widget.downloadedNotif.value = true;
+                                    }
+                                  },
+                                  onError: (id) {
+                                    if (mounted) {
+                                      setState(() {
+                                        downloadingFiles.remove(id);
+                                      });
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Error al descargar el archivo')),
+                                      );
+                                    }
+                                  },
+                                );
+                              },
+
+                              /*onPressed: downloadingFiles.contains(audio.fileId)//isDownloading
+                                ? null
+                                : () async {
+                                  if (!mounted) return; // Extra seguro
+
+                                  setState(() {
+                                    downloadingFiles.add(audio.fileId);//isDownloading = true;
+                                  });
                                 // Asume 'root' o la carpeta destino conocida
                                 final String? destinationFolderId = await _driveService.getFolderId("P2P-Audio-Share");
                                 /*final newId = await _driveService.copyFile(
@@ -181,17 +258,27 @@ class _SearchPageState extends State<SearchPage> {
                                     audio.link, audio.name, destinationFolderId!
                                 );
 
+                                if (!mounted) return; // Revisa si la pantalla sigue activa
+
+                                setState(() {
+                                  downloadingFiles.remove(audio.fileId);//isDownloading = false;
+                                });
+
                                 if (downloaded != null) {
+                                  widget.downloadedNotif.value = true;
+                                  debugPrint('Enviando Notfier true...');
+
                                   // Notificación en pantalla
-                                  ScaffoldMessenger.of(context).showSnackBar(
+                                  /*ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(content: Text('Archivo descargado!')),
-                                  );
+                                  );*/
+                                  showDownloadNotification(audio.name);
                                 } else {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(content: Text('Error al descargar el archivo')),
                                   );
                                 }
-                              },
+                              },*/
                             ),
                           ),
                           const Divider(),
@@ -199,10 +286,19 @@ class _SearchPageState extends State<SearchPage> {
                       );
                     },
                   ),
-            )
-          ],
-        ),
-      ),
+                )
+              ],
+            ),
+          ),
+          /*if (isDownloading)
+            Container(
+              color: const Color.fromARGB(77, 0, 0, 0), // 0.3 * 255 = 76.5 ≈ 77
+              child: const Center(
+                child: CircularProgressIndicator(),
+              ),
+            ),*/
+        ],
+      )
     );
   }
 }

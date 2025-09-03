@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:primer_login/Pages/LoginPage.dart';
 import '../Services/drive_service.dart';
 import '../Services/tracker_service.dart';
+import '../Services/auth_service.dart';
 import '../Pages/searchPage.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:just_audio/just_audio.dart';
@@ -28,10 +30,13 @@ class _HomePageState extends State<HomePage> {
   bool panelHide = false;         // Para ocultar o no el panel de reproducción
   final player = AudioPlayer();   // Instancia de reproductor de audio
 
+  ValueNotifier<bool> downloadedNotifier = ValueNotifier(false);  // Para notificar cuando se ha descargado un audio
+
   Duration duration = Duration.zero;  // Para el panel de reproducción
   Duration position = Duration.zero;  // Para el panel de reproducción
 
   final DriveService _driveService = DriveService();
+  final AuthService _authService = AuthService();
   //final TrackerService _tracker1Service = TrackerService("http://34.175.220.81:8080");
   //final TrackerService _tracker2Service = TrackerService("http://34.175.164.1:8080");
 
@@ -54,6 +59,13 @@ class _HomePageState extends State<HomePage> {
 
     // Cargamos los audios disponibles en Drive
     //_loadFiles();
+    downloadedNotifier.addListener(() {
+      if (downloadedNotifier.value == true) {
+        debugPrint('Notifier true, cargando audios...');
+        _loadFiles();
+        downloadedNotifier.value = false;  // Resetear
+      }
+    });
 
     // Escucha cambios de duración y posición
     player.durationStream.listen((dur) {
@@ -119,26 +131,6 @@ class _HomePageState extends State<HomePage> {
     // IMPLEMENTACIÓN FUTURA //
   }
 
-
-  // CHANGE FROM SHARED TO NOT SHARED
-  /*Future<void> _toggleShare(String fileId) async {
-    setState(() {
-      filesShare[fileId] = !(filesShare[fileId] ?? false);
-    });
-
-    // Obtenemos audio y su nombre
-    final file = files!.firstWhere((f) => f['id'] == fileId);
-    final fileName = file['name'] ?? 'nameless_audio.mp3';
-
-    // Enviamos petición al Tracker según si compartimos o dejamos de compartir un audio
-    if (filesShare[fileId] == true) {
-      debugPrint("Archivo compartido: $fileId");
-      await _trackerService.registerUser(username, "register", fileId, fileName);
-    } else {
-      debugPrint("Archivo dejado de compartir: $fileId");
-      await _trackerService.registerUser(username, "unregister", fileId, fileName);
-    }
-  }*/
 
   Future<void> _toggleShare(String fileId, String fileName) async {
     final int state = filesInTracker[fileId] ?? 0;
@@ -238,8 +230,8 @@ class _HomePageState extends State<HomePage> {
         SnackBar(
           content: Text(
             currentlyShared
-                ? 'Se dejó de compartir "$fileName" en ${tracker.trackerUrl}'
-                : 'Se compartió "$fileName" en ${tracker.trackerUrl}',
+                ? 'Se dejó de compartir "$fileName"'
+                : 'Se compartió "$fileName"',
           ),
         ),
       );
@@ -265,21 +257,37 @@ class _HomePageState extends State<HomePage> {
 
       debugPrint("Archivo seleccionado: $fileName");
 
-      String? fileId = await _driveService.uploadFile(widget.folderId, filePath, fileName);
+      // Enviamos el audio al servidor para análisis
+      final report = await trackers[0].sendToServerForAnalysis(filePath, /*fileId,*/ fileName);
 
-      if (fileId != null) {
+      if (report == "Coincidencias encontradas"){
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Se han detectado derechos de autor.\nNo puede compartir el archivo en la red.')),);
+      } else {
+        String? fileId = await _driveService.uploadFile(widget.folderId, filePath, fileName);
+
+        if (fileId != null) {
+          debugPrint("Archivo subido con éxito: $fileId");
+          _loadFiles(); // Refrescar la lista de archivos
+        } else {
+          debugPrint("Error al subir el archivo");
+        }
+      }
+
+      //String? fileId = await _driveService.uploadFile(widget.folderId, filePath, fileName);
+
+      /*if (fileId != null) {
         debugPrint("Archivo subido con éxito: $fileId");
         _loadFiles(); // Refrescar la lista de archivos
       } else {
         debugPrint("Error al subir el archivo");
-      }
+      }*/
 
       // Enviamos el audio al servidor para análisis
-      try {
+      /*try {
         final uri = Uri.parse('http://34.175.220.81:8080/api/analyze');  // MODIFICAR
         final request = http.MultipartRequest('POST', uri)
         // Opcional: enviamos también el fileId para rastrear
-          ..fields['fileId'] = fileId!  // Se ha incluido ! para checkear nulidad
+          //..fields['fileId'] = fileId!  // Se ha incluido ! para checkear nulidad
         // Adjuntamos el fichero
           ..files.add(await http.MultipartFile.fromPath(
             'file',
@@ -303,7 +311,7 @@ class _HomePageState extends State<HomePage> {
         }
       } catch (e) {
         debugPrint('Excepción enviando audio al servidor: $e');
-      }
+      }*/
 
     }
 
@@ -325,6 +333,35 @@ class _HomePageState extends State<HomePage> {
         SnackBar(content: Text('Error al eliminar "$fileName": $e')),
       );
     }
+  }
+
+  void _confirmSignOut() {
+    showDialog(
+        context: context,
+        builder: (_) =>
+            AlertDialog(
+              title: Text('Cerrar Sesión'),
+              content: const Text('¿Está seguro? Se cerrará la sesión de su cuenta'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancelar'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _authService.signOut();
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => LoginPage()),
+                    );
+                  },
+                  child: const Text(
+                      'Aceptar', style: TextStyle(color: Colors.red)),
+                ),
+              ],
+            )
+    );
   }
 
   void _confirmDelete(String fileId, String fileName) {
@@ -398,32 +435,6 @@ class _HomePageState extends State<HomePage> {
     } catch (e) {
       debugPrint("Error en reproducción por streaming: $e");
     }
-
-    /*final file = files![index];
-    final fileUrl = await _driveService.getFileUrl(file['id']!);
-
-    if (currentIdx == index) return;
-
-    setState(() {
-      currentIdx = index;
-      selectedAudio = file['name'];
-    });
-
-    player.playbackEventStream.listen((event) {
-      // Opcional: debug del estado
-    }, onError: (e, stackTrace) {
-      print("Error reproduciendo el audio: $e");
-    });
-
-
-    await player.setUrl(fileUrl);
-    //await player.setUrl("https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3");   // PRUEBA
-    player.play();
-    setState(() => isPlaying = true);
-
-    player.playerStateStream.listen((state) {
-      setState(() => isPlaying = state.playing);
-    });*/
   }
 
   // SWITCH TO PLAY/PAUSE
@@ -518,8 +529,19 @@ class _HomePageState extends State<HomePage> {
 
       // BARRA SUPERIOR
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: const Text("P2P-Audio-Share"),
-        backgroundColor: Colors.green,
+        backgroundColor: Colors.orange[600],//Color(0xFF26A69A),
+        leading: IconButton(
+          icon: Icon(Icons.power_settings_new),
+          onPressed: () => _confirmSignOut(), /*{
+            _authService.signOut();
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => LoginPage()),
+            );
+          },*/
+        ),
         actions: [
 
           // ICONO DE SUBIDA
@@ -532,14 +554,18 @@ class _HomePageState extends State<HomePage> {
           // ICONO DE BÚSQUEDA
           IconButton(
             icon: const Icon(Icons.search),   // Icono de búsqueda
-            onPressed: () async {
-              await Navigator.push(
+            onPressed: () /*async*/ {
+              /*await*/ Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => SearchPage(trackers: trackers)),
+                MaterialPageRoute(builder: (context) => SearchPage(trackers: trackers, downloadedNotif: downloadedNotifier)),
               );
-
+              // Esto se ejecuta al volver de SearchPage
+              if (downloadedNotifier.value == true) {
+                _loadFiles();
+                downloadedNotifier.value = false;
+              }
               // Volvemos a cargar los audios de Drive al volver
-              _loadFiles();
+              //_loadFiles();
             }
           ),
         ],
@@ -548,67 +574,70 @@ class _HomePageState extends State<HomePage> {
           children: [
             // Añadimos círculo de carga
             isLoading ? const Center(child: CircularProgressIndicator())
-                : files == null || files!.isEmpty ? const Center(child: Text("Aún no tienes audios para compartir"))
-                : ListView.builder(
-              itemCount: files!.length,
-              itemBuilder: (context, index) {
-                final file = files![index];
-                final name = file['name'] ?? 'Archivo';
-                final fileId = file['id']!;
-                final isShared = filesShare[fileId] ?? false;
+                : RefreshIndicator(
+                  onRefresh: _loadFiles,
+                  child: files == null || files!.isEmpty ? const Center(child: Text("Aún no tienes audios para compartir"))
+                      : ListView.builder(
+                    itemCount: files!.length,
+                    itemBuilder: (context, index) {
+                      final file = files![index];
+                      final name = file['name'] ?? 'Archivo';
+                      final fileId = file['id']!;
+                      final isShared = filesShare[fileId] ?? false;
 
-                // LISTA DE AUDIOS DE DRIVE
-                return ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16.0,  // Reduce el padding horizontal por defecto
-                  ),
-                  title: Text(file['name'] ?? "Archivo"),
-                  leading: const Icon(Icons.music_note),
-                  onTap: () => _playAudio(index),
-                  onLongPress: () => _confirmDelete(fileId, name),
-                  trailing: Row(
-                      mainAxisSize: MainAxisSize.min,  // Muy importante para no obligar al Row a ocupar todo el ancho
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.only(right: 20.0),  // Espacio extra al botón
-                          child: SizedBox(
-                            width: 36,
-                            height: 36,
+                      // LISTA DE AUDIOS DE DRIVE
+                      return ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16.0,  // Reduce el padding horizontal por defecto
+                        ),
+                        title: Text(file['name'] ?? "Archivo"),
+                        leading: const Icon(Icons.music_note),
+                        onTap: () => _playAudio(index),
+                        onLongPress: () => _confirmDelete(fileId, name),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,  // Muy importante para no obligar al Row a ocupar todo el ancho
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.only(right: 20.0),  // Espacio extra al botón
+                              child: SizedBox(
+                                width: 36,
+                                height: 36,
 
-                            // BOTÓN DE COMPARTIR
-                            child: ElevatedButton(
-                              onPressed: () => _toggleShare(fileId, name),
-                              style: ElevatedButton.styleFrom(
+                                // BOTÓN DE COMPARTIR
+                                child: ElevatedButton(
+                                  onPressed: () => _toggleShare(fileId, name),
+                                  style: ElevatedButton.styleFrom(
+                                    padding: EdgeInsets.zero,
+                                    minimumSize: const Size(36, 36),
+                                    shape: const CircleBorder(),
+                                  ),
+                                  child: Icon(
+                                    isShared ? Icons.public_off : Icons.public_sharp,
+                                    size: 20,
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            // BOTÓN DE LIKE
+                            SizedBox(
+                              width: 36,
+                              height: 36,
+                              child: IconButton(
                                 padding: EdgeInsets.zero,
-                                minimumSize: const Size(36, 36),
-                                shape: const CircleBorder(),
-                              ),
-                              child: Icon(
-                                isShared ? Icons.public_off : Icons.public_sharp,
-                                size: 20,
+                                icon: Icon(
+                                  filesLike[fileId]! ? Icons.favorite : Icons.favorite_border,
+                                  color: filesLike[fileId]! ? Colors.red : Colors.grey,
+                                  size: 20,
+                                ),
+                                onPressed: () => _toggleLike(fileId),
                               ),
                             ),
-                          ),
+                          ],
                         ),
-
-                        // BOTÓN DE LIKE
-                        SizedBox(
-                          width: 36,
-                          height: 36,
-                          child: IconButton(
-                            padding: EdgeInsets.zero,
-                            icon: Icon(
-                              filesLike[fileId]! ? Icons.favorite : Icons.favorite_border,
-                              color: filesLike[fileId]! ? Colors.red : Colors.grey,
-                              size: 20,
-                            ),
-                            onPressed: () => _toggleLike(fileId),
-                          ),
-                        ),
-                      ],
+                      );
+                    },
                   ),
-                );
-              },
-            ),
+                ),
 
             // PANEL DE REPRODUCCIÓN
             if (selectedAudio != null)
@@ -620,7 +649,7 @@ class _HomePageState extends State<HomePage> {
                   //width: MediaQuery.of(context).size.width * 0.8, // ocupa 80% del ancho
                   duration: const Duration(milliseconds: 200),
                   height: panelHide ? 120 : 48,
-                  color: Colors.green,
+                  color: Colors.orange[600], //Color(0xFF26A69A),
                   //padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import '../Resources/SharedAudio.dart';
 
 class TrackerService {
@@ -35,7 +36,35 @@ class TrackerService {
     }
   }
 
-  Future<void> _sendToServerForAnalysis(String filePath) async {
+  Future<String> sendToServerForAnalysis(String filePath, /*String fileId,*/ String fileName) async {
+      final uri = Uri.parse('$trackerUrl/api/analyze');  // MODIFICAR
+      final request = http.MultipartRequest('POST', uri)
+      // Opcional: enviamos también el fileId para rastrear
+        //..fields['fileId'] = fileId!  // Se ha incluido ! para checkear nulidad
+      // Adjuntamos el fichero
+        ..files.add(await http.MultipartFile.fromPath(
+          'file',
+          filePath,
+          filename: fileName,
+          contentType: MediaType('audio', fileName.split('.').last),
+        ));
+
+      final streamedResp = await request.send();
+      final resp = await http.Response.fromStream(streamedResp);
+
+      if (resp.statusCode == 200) {
+        debugPrint('Análisis iniciado correctamente en el servidor');
+
+        // El cuerpo es texto plano con el informe de coincidencias
+        final report = resp.body;
+        //ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Análisis completado:\n$report')),);
+        debugPrint('REPORT: $report');
+        return report;
+      } else {
+        debugPrint('Error al iniciar análisis: ${resp.statusCode}');
+        //ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error en análisis: ${resp.statusCode}')),);
+        return '';
+      }
 
   }
 
