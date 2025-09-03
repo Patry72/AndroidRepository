@@ -6,7 +6,7 @@
 .DS_Store
 .atom/
 .build/
-!build/app/outputs/apk/release/
+!*.apk
 .buildlog/
 .history
 .svn/
