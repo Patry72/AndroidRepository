@@ -23,22 +23,11 @@ class DriveService {
     };
   }
 
-  /// =============================================
-  ///     OBTENCIÓN DE HEADERS DE AUTENTICACIÓN
-  /// =============================================
-  /*Future<Map<String, String>> getAuthHeaders2() async {
-    final account = await _googleSignIn.signIn();
-    final auth = await account?.authentication;
-    return {
-      'Authorization': 'Bearer ${auth?.accessToken}'
-    };
-  }*/
-
-  /// =============================================
-  ///     OBTENCIÓN DE ID DE CARPETA POR NOMBRE
+  /// ===========================================
+  ///    OBTENCIÓN DE ID DE CARPETA POR NOMBRE
   ///
   /// folderName: nombre de la carpeta a buscar
-  /// =============================================
+  /// ===========================================
   Future<String?> getFolderId(String folderName/*, final googleAuth*/) async {
     // Obtenemos headers para autenticación
     final headers = await _authService.getAuthHeaders2();
@@ -85,13 +74,13 @@ class DriveService {
     return null;
   }
 
-  /// ==========================================
-  ///     SUBIDA DE UN ARCHIVO A UNA CARPETA
+  /// ========================================
+  ///    SUBIDA DE UN ARCHIVO A UNA CARPETA
   ///
   /// folderId: ID de la carpeta destino
   /// filePath: path local al archivo de audio
   /// fileName: nombre del archivo de audio
-  /// ==========================================
+  /// ========================================
   Future<String?> uploadFile(String folderId, String filePath, String fileName) async {
     // Obtenemos headers para autenticación
     final headers = await _authService.getAuthHeaders2();
@@ -164,13 +153,13 @@ class DriveService {
     }
   }
 
-  /// =============================================
+  /// ============================================
   ///    SUBIDA DE ARCHIVO DESDE ENLACE PÚBLICO
   ///
   /// downloadUrl: enlace público al archivo
   /// newFileName: nombre que tendrá el archivo una vez subido
   /// destFolderId: ID de la carpeta de destino
-  /// =============================================
+  /// ============================================
   Future<String?> uploadFileFromLink(String downloadUrl, String newFileName, String destFolderId,) async {
     // Descargamos el archivo como bytes
     final response = await http.get(Uri.parse(downloadUrl));
@@ -224,6 +213,11 @@ class DriveService {
     }
   }
 
+  /// =====================================
+  ///    OBTENCIÓN DE ENLACE DE DESCARGA
+  ///
+  /// fileId: ID del archivo de destino
+  /// =====================================
   Future<String?> getDownloadLink(String fileId) async {
     // Obtenemos headers para autenticación
     final headers = await _authService.getAuthHeaders2();
@@ -248,11 +242,11 @@ class DriveService {
     }
   }
 
-  /// ===========================
-  ///     CREACIÓN DE CARPETA
+  /// =========================
+  ///    CREACIÓN DE CARPETA
   ///
   /// folderName: nombre de la carpeta destino
-  /// ===========================
+  /// =========================
   Future<String?> createFolder(String folderName) async {
     debugPrint('Buscando carpeta...');
 
@@ -330,10 +324,11 @@ class DriveService {
     }
   }*/
 
-  /// ===========================
-  ///     LISTADO DE ARCHIVOS
+  /// ==========================
+  ///    LISTADO DE ARCHIVOS
+  ///
   /// folderId: ID de la carpeta de archivos
-  /// ===========================
+  /// ==========================
   Future<List<Map<String, String>>?> listFilesInFolder(String folderId) async {
     // Obtenemos headers para la autenticación
     final headers = await _authService.getAuthHeaders2();
@@ -371,15 +366,25 @@ class DriveService {
     }
   }
 
-  // OBTENCIÓN DE URL DE ARCHIVO
+  /// =======================================
+  ///    OBTENCIÓN DE LA URL DE UN ARCHIVO
+  ///
+  /// fileId: ID del archivo de destino
+  /// =======================================
   Future<String> getFileUrl(String fileId) async {
     return 'https://drive.google.com/uc?export=download&id=$fileId';
   }
 
-  // HACER PÚBLICO UN ARCHIVO
+  /// ==============================
+  ///    HACER PÚBLICO UN ARCHIVO
+  ///
+  /// fileId: ID del archivo de destino
+  /// ==============================
   Future<void> makeFilePublic(String fileId) async {
+    // Obtenemos headers para la autenticación
     final headers = await _authService.getAuthHeaders2();
 
+    // Enviamos la petición de publicación
     final response = await http.post(
       Uri.parse('https://www.googleapis.com/drive/v3/files/$fileId/permissions'),
       headers: {
@@ -399,11 +404,16 @@ class DriveService {
     }
   }
 
-  // REVOCAR PERMISOS PÚBLICO DE UN ARCHIVO
+  /// =============================================
+  ///    REVOCAR PERMISOS PÚBLICOS DE UN ARCHIVO
+  ///
+  /// fileId: ID del archivo de destino
+  /// =============================================
   Future<void> revokePublicPermission(String fileId) async {
+    // Obtenemos headers para la autenticación
     final headers = await _authService.getAuthHeaders2();
 
-    // Paso 1: obtener todos los permisos del archivo
+    // Enviamos la petición para obtener los permisos
     final permissionsUrl = Uri.parse('https://www.googleapis.com/drive/v3/files/$fileId/permissions');
     final permissionsResp = await http.get(permissionsUrl, headers: headers);
 
@@ -421,13 +431,13 @@ class DriveService {
       return;
     }
 
+    // Buscamos el id del permiso
     final permissionId = permission['id'];
 
-    // Paso 2: eliminar ese permiso
+    // Eliminar ese permiso
     final deleteUrl = Uri.parse(
       'https://www.googleapis.com/drive/v3/files/$fileId/permissions/$permissionId',
     );
-
     final deleteResp = await http.delete(deleteUrl, headers: headers);
 
     if (deleteResp.statusCode == 204) {
@@ -437,18 +447,25 @@ class DriveService {
     }
   }
 
-  // TRANSFERENCIA DE AUDIO A MI CARPETA DE DRIVE
-  // fileId: ID del audio
-  // destFolderId: ID de la carpeta destino (P2P-Audio-Share)
-  // newName: nombre del audio
+  /// ===============================================
+  ///    TRANSFERENCIA DE AUDIO A CARPETA DE DRIVE
+  ///
+  /// fileId: ID del archivo a copiar
+  /// destFolderId: ID de la carpeta destino (P2P-Audio-Share)
+  /// newName: nombre final del archivo
+  /// ===============================================
   Future<String?> copyFile(String fileId, String? destFolderId, String newName) async {
+    // Obtenemos headers para la autenticación
     final headers = await _authService.getAuthHeaders2();
+
+
     final url = Uri.parse('https://www.googleapis.com/drive/v3/files/$fileId/copy');
     final body = jsonEncode({
       'name': newName,
       'parents': [destFolderId],
     });
 
+    // Enviamos la petición de copia
     final response = await http.post(
       url,
       headers: {
@@ -468,9 +485,16 @@ class DriveService {
     }
   }
 
-  // ELIMINACIÓN DE UN AUDIO
+  /// ===============================
+  ///    ELIMINACIÓN DE UN ARCHIVO
+  ///
+  /// fileId: ID del archivo destino
+  /// ===============================
   Future<void> deleteFile(String fileId) async {
+    // Obtenemos headers para la autenticación
     final headers = await _authService.getAuthHeaders2();
+
+    // Enviamos la petición de eliminación
     final response = await http.delete(
       Uri.parse('https://www.googleapis.com/drive/v3/files/$fileId'),
       headers: {

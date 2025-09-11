@@ -5,13 +5,20 @@ import 'package:http_parser/http_parser.dart';
 import '../Resources/SharedAudio.dart';
 
 class TrackerService {
-  //final String trackerUrl = "http://34.175.164.1:8080"; // IP del servidor Tracker en la VM de Google Cloud Console tracker-vm: 34.175.220.81 tracker-vm-2: 34.175.127.228
   final String trackerUrl;
 
   // CONSTRUCTOR que inicializa la url al tracker
   TrackerService(this.trackerUrl);
 
-  // REGISTER AN USER
+  /// ==========================
+  ///    REGISTRAR UN USUARIO
+  ///
+  /// name: nombre del usuario
+  /// action: acción de registro (register/unregister)
+  /// fileId: ID del archivo a compartir
+  /// fileName: nombre del archivo a compartir
+  /// link: enlace de descarga temporal del archivo
+  /// ==========================
   Future<void> registerUser(String name, String action, String fileId, String fileName, String link) async {
     try {
       final response = await http.post(
@@ -36,6 +43,12 @@ class TrackerService {
     }
   }
 
+  /// =================================================
+  ///    ENVÍO DE UN ARCHIVO A ANÁLISIS DE COPYRIGHT
+  ///
+  /// filePath: dirección local del archivo
+  /// fileName: nombre del archivo
+  /// =================================================
   Future<String> sendToServerForAnalysis(String filePath, /*String fileId,*/ String fileName) async {
       final uri = Uri.parse('$trackerUrl/api/analyze');  // MODIFICAR
       final request = http.MultipartRequest('POST', uri)
@@ -68,8 +81,13 @@ class TrackerService {
 
   }
 
+  /// ==================================================
+  ///    OBTENCIÓN DEL ID DE MIS ARCHIVOS COMPARTIDOS
+  ///
+  /// user: nombre del usuario
+  /// ==================================================
   Future<List<String>> getMySharedAudiosId(String user) async {
-    final uri = Uri.parse('$trackerUrl/shared') // Probar a cambiar a myShared para no confundir con el siguiente método
+    final uri = Uri.parse('$trackerUrl/shared')
         .replace(queryParameters: {'owner': user});
 
     final resp = await http.get(uri);
@@ -80,27 +98,17 @@ class TrackerService {
           .map((e) => e['fileId'] as String)
           .toList();
     } else {
-      // Si hay error, mejor devolver lista vacía y loguear:
+      // Si hay error, mejor devolver lista vacía y loguear
       debugPrint('Error fetching shared IDs: ${resp.statusCode} ${resp.body}');
       return [];
     }
   }
 
-  // GET ALL SHARED AUDIOS IN NETWORK --> SE PODRÍA ELIMINAR
-  Future<List<SharedAudio>> getSharedAudios() async {
-    final response = await http.get(Uri.parse('$trackerUrl/shared'));
-
-    if (response.statusCode == 200) {
-      final List data = jsonDecode(response.body);
-      debugPrint("Audios compartidos obtenidos");
-      return data.map((e) => SharedAudio.fromJson(e)).toList();
-    } else {
-      debugPrint("Error al obtener audios compartidos: ${response.body}");
-      return [];
-    }
-  }
-
-  // SEARCH AUDIOS
+  /// ============================
+  ///    BÚSQUEDA DE UN ARCHIVO
+  ///
+  /// query: texto de búsqueda
+  /// ============================
   Future<List<SharedAudio>> searchAudios(String query) async {
     debugPrint("Buscando audios en tracker...");
 
@@ -116,7 +124,9 @@ class TrackerService {
     }
   }
 
-  // PING A TRACKER
+  /// ========================================
+  ///    OBTENCIÓN DE LATENCIA A UN TRACKER
+  /// ========================================
   Future<int> findTracker() async {
     final stopwatch = Stopwatch()..start();
     debugPrint('Iniciando ping a $trackerUrl ...');

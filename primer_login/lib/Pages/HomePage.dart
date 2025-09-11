@@ -37,10 +37,7 @@ class _HomePageState extends State<HomePage> {
 
   final DriveService _driveService = DriveService();
   final AuthService _authService = AuthService();
-  //final TrackerService _tracker1Service = TrackerService("http://34.175.220.81:8080");
-  //final TrackerService _tracker2Service = TrackerService("http://34.175.164.1:8080");
 
-  //List<TrackerService> trackers = [TrackerService("http://34.175.220.81:8080"), TrackerService("http://34.175.164.1:8080")];
   late List<TrackerService> trackers;
   List<Map<String, String>>? files;     // Lista de archivos
   Map<String, bool> filesShare = {};    // Map con estado de archivos compartidos
@@ -57,8 +54,7 @@ class _HomePageState extends State<HomePage> {
     // Restaura estado previo
     _loadPrevState();
 
-    // Cargamos los audios disponibles en Drive
-    //_loadFiles();
+    // Iniciamos un listener para cuando se descargue un audio
     downloadedNotifier.addListener(() {
       if (downloadedNotifier.value == true) {
         debugPrint('Notifier true, cargando audios...');
@@ -76,18 +72,22 @@ class _HomePageState extends State<HomePage> {
       // Guardamos la posición para próximo inicio
       _savePrevPosition(pos);
     });
-
-    // No he añadido cambios de estado (play/pause) de ChatGPT
   }
 
-  // TO FREE RESOURCES FROM AUDIO PLAYER
+  /// ============================================
+  ///    LIBERACIÓN DE RECURSOS DEL REPRODUCTOR
+  /// ============================================
   @override
   void dispose() {
     player.dispose();
     super.dispose();
   }
 
-  // CARGA DE AUDIOS PERSONALES DE DRIVE
+  /// ===================================================
+  ///    VISUALIZACIÓN DE LOS ARCHIVOS EN GOOGLE DRIVE
+  ///
+  /// fileId: ID del archivo destino
+  /// ===================================================
   Future<void> _loadFiles() async {
     setState(() => isLoading = true);
 
@@ -122,7 +122,11 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  // CHANGE FROM LIKED TO NO LIKED
+  /// ====================================
+  ///    CAMBIO DEL BOTÓN DE "ME GUSTA"
+  ///
+  /// fileId: ID del archivo destino
+  /// ====================================
   void _toggleLike(String fileId) {
     setState(() {
       filesLike[fileId] = !(filesLike[fileId] ?? false);
@@ -131,8 +135,14 @@ class _HomePageState extends State<HomePage> {
     // IMPLEMENTACIÓN FUTURA //
   }
 
-
+  /// =====================================
+  ///    CAMBIO DEL BOTÓN DE "COMPARITR"
+  ///
+  /// fileId: ID del archivo
+  /// fileName: nombre del archivo
+  /// =====================================
   Future<void> _toggleShare(String fileId, String fileName) async {
+    // Obtenemos estado del archivo (0: no compartiendo, otro: compartiendo)
     final int state = filesInTracker[fileId] ?? 0;
 
     final link = await _driveService.getDownloadLink(fileId);
@@ -185,6 +195,14 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  /// ==========================================
+  ///    REGISTRO DE UN ARCHIVO EN UN TRACKER
+  ///
+  /// fileId: ID del archivo a compartir
+  /// fileName: nombre del archivo a compartir
+  /// link: enlace de descarga temporal del archivo
+  /// trackerNumber: ID del tracker destino
+  /// ==========================================
   Future<void> _registerToTracker(String fileId, String fileName, String link, int trackerNumber) async {
     //final servicio = (trackerNumber == 1) ? _tracker1Service : _tracker2Service;
     final servicio = trackers[trackerNumber - 1];
@@ -197,6 +215,14 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  /// =============================================
+  ///    DESREGISTRO DE UN ARCHIVO EN UN TRACKER
+  ///
+  /// fileId: ID del archivo a dejar de compartir
+  /// fileName: nombre del archivo a dejar de compartir
+  /// link: enlace de descarga temporal del archivo
+  /// trackerNumber: ID del tracker destino
+  /// =============================================
   Future<void> _unregisterFromTracker(String fileId, String fileName, String link, int trackerNumber) async {
     //final servicio = (trackerNumber == 1) ? _tracker1Service : _tracker2Service;
     final servicio = trackers[trackerNumber - 1];
@@ -210,15 +236,19 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  /// ====================================
+  ///    ENVÍO DE PETICIÓN A UN TRACKER
+  ///
+  /// fileId: ID del archivo a enviar
+  /// fileName: nombre del archivo a enviar
+  /// link: enlace de descarga temporal del archivo
+  /// trackerNumber: ID del tracker destino
+  /// ====================================
   Future<void> _sendToTracker(String fileId, String fileName, String link, TrackerService tracker) async {
     final currentlyShared = filesShare[fileId] ?? false;
     final action = currentlyShared ? "unregister" : "register";
 
     try {
-      /// Llamamos al método del servicio, pasándole:
-      /// - user: username
-      /// - action: "register" o "unregister"
-      /// - fileId, fileName, link
       await tracker.registerUser(username, action, fileId, fileName, link);
 
       // Si no hubo excepción, consideramos que el tracker respondió OK (200) internamente
@@ -245,7 +275,9 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // UPLOAD AUDIO FROM LOCAL STORAGE
+  /// ==============================
+  ///    SUBIDA DE UN AUDIO LOCAL
+  /// ==============================
   Future<void> _pickAndUploadFile() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.audio, // Solo permite archivos de audio
@@ -273,46 +305,6 @@ class _HomePageState extends State<HomePage> {
         }
       }
 
-      //String? fileId = await _driveService.uploadFile(widget.folderId, filePath, fileName);
-
-      /*if (fileId != null) {
-        debugPrint("Archivo subido con éxito: $fileId");
-        _loadFiles(); // Refrescar la lista de archivos
-      } else {
-        debugPrint("Error al subir el archivo");
-      }*/
-
-      // Enviamos el audio al servidor para análisis
-      /*try {
-        final uri = Uri.parse('http://34.175.220.81:8080/api/analyze');  // MODIFICAR
-        final request = http.MultipartRequest('POST', uri)
-        // Opcional: enviamos también el fileId para rastrear
-          //..fields['fileId'] = fileId!  // Se ha incluido ! para checkear nulidad
-        // Adjuntamos el fichero
-          ..files.add(await http.MultipartFile.fromPath(
-            'file',
-            filePath,
-            filename: fileName,
-            contentType: MediaType('audio', fileName.split('.').last),
-          ));
-
-        final streamedResp = await request.send();
-        final resp = await http.Response.fromStream(streamedResp);
-
-        if (resp.statusCode == 200) {
-          debugPrint('Análisis iniciado correctamente en el servidor');
-
-          // El cuerpo es texto plano con el informe de coincidencias
-          final report = resp.body;
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Análisis completado:\n$report')),);
-        } else {
-          debugPrint('Error al iniciar análisis: ${resp.statusCode}');
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error en análisis: ${resp.statusCode}')),);
-        }
-      } catch (e) {
-        debugPrint('Excepción enviando audio al servidor: $e');
-      }*/
-
     }
 
     // Refrescamos lista de audios cuando acabe el análisis
@@ -320,7 +312,12 @@ class _HomePageState extends State<HomePage> {
 
   }
 
-  // DELETE AUDIO FROM APP
+  /// =============================
+  ///    ELIMINACIÓN DE UN AUDIO
+  ///
+  /// fileId: ID del archivo a eliminar
+  /// fileName: nombre del archivo a eliminar
+  /// =============================
   Future<void> _deleteFile(String fileId, String fileName) async {
     try {
       await _driveService.deleteFile(fileId);
@@ -335,6 +332,9 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  /// ==========================================
+  ///    CONFIRMACIÓN PARA CERRAR SESIÓN
+  /// ==========================================
   void _confirmSignOut() {
     showDialog(
         context: context,
@@ -364,6 +364,12 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  /// =================================
+  ///    CONFIRMACIÓN DE ELIMINACIÓN
+  ///
+  /// fileId: ID del archivo a eliminar
+  /// fileName: nombre del archivo a eliminar
+  /// =================================
   void _confirmDelete(String fileId, String fileName) {
     if (filesShare[fileId] == true) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -395,7 +401,11 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // PLAY A SELECTED AUDIO
+  /// ==============================
+  ///    REPRODUCCIÓN DE UN AUDIO
+  ///
+  /// index: índice del audio a reproducir
+  /// ==============================
   void _playAudio(int index) async {
     debugPrint("Reproduciendo...");
 
@@ -437,7 +447,9 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // SWITCH TO PLAY/PAUSE
+  /// ==========================
+  ///    CAMBIO DE PLAY/PAUSE
+  /// ==========================
   void _togglePlayPause() {
     if (isPlaying) {
       player.pause();
@@ -452,7 +464,9 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  // PLAY NEXT AUDIO
+  /// ================================
+  ///    REPRODUCIR SIGUIENTE AUDIO
+  /// ================================
   void _playNext() {
     if (files == null || files!.isEmpty) return;
     // Acotamos índice (Round Robbin)
@@ -460,7 +474,9 @@ class _HomePageState extends State<HomePage> {
     _playAudio(nextIndex);
   }
 
-  // PLAY PREVIOUS AUDIO
+  /// ===============================
+  ///    REPRODUCIR AUDIO ANTERIOR
+  /// ===============================
   void _playPrevious() {
     if (files == null || files!.isEmpty) return;
     // Acotamos índice (Round Robbin)
@@ -468,7 +484,11 @@ class _HomePageState extends State<HomePage> {
     _playAudio(prevIndex);
   }
 
-  // RESET A DURATION AS mm:ss
+  /// ============================================
+  ///    OBTENCIÓN DE DURACIÓN EN FORMATO MM:SS
+  ///
+  /// d: duración actual de la reproducción
+  /// ============================================
   String _formatDuration(Duration d) {
     twoDigits(int n) => n.toString().padLeft(2, '0');
     final minutes = twoDigits(d.inMinutes.remainder(60));
@@ -476,16 +496,31 @@ class _HomePageState extends State<HomePage> {
     return '$minutes:$seconds';
   }
 
+  /// =========================================
+  ///    CARGA DEL ESTADO ANTERIOR DE LA APP
+  /// =========================================
   Future<void> _loadPrevState() async {
     await _loadFiles();
     await _restoreAudioState();
   }
 
+  /// =========================================
+  ///    GUARDAR POSICIÓN DE LA REPRODUCCIÓN
+  ///
+  /// d: duración actual de la reproducción
+  /// =========================================
   Future<void> _savePrevPosition(Duration pos) async {
     final pref = await SharedPreferences.getInstance();
     await pref.setInt('savedPositionMs', pos.inMilliseconds);
   }
 
+  /// ================================================
+  ///    GUARGAR ESTADO DE REPRODUCCIÓN DE UN AUDIO
+  ///
+  /// fileId: ID del archivo a guardar
+  /// name: nombre del archivo a guardar
+  /// idx: índice del audio a guardar
+  /// ================================================
   Future<void> _saveAudioState(String fileId, String name, int idx) async {
     final pref = await SharedPreferences.getInstance();
     await pref.setString('savedFileId', fileId);
@@ -493,6 +528,9 @@ class _HomePageState extends State<HomePage> {
     await pref.setInt('savedAudioIdx', idx);
   }
 
+  /// ==================================================
+  ///    RESTAURAR ESTADO DE REPRODUCCIÓN DE UN AUDIO
+  /// ==================================================
   Future<void> _restoreAudioState() async {
     final pref = await SharedPreferences.getInstance();
     final idx      = pref.getInt('savedAudioIdx');
@@ -534,13 +572,7 @@ class _HomePageState extends State<HomePage> {
         backgroundColor: Colors.orange[600],//Color(0xFF26A69A),
         leading: IconButton(
           icon: Icon(Icons.power_settings_new),
-          onPressed: () => _confirmSignOut(), /*{
-            _authService.signOut();
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => LoginPage()),
-            );
-          },*/
+          onPressed: () => _confirmSignOut(),
         ),
         actions: [
 
@@ -741,15 +773,6 @@ class _HomePageState extends State<HomePage> {
               ),
           ],
       ),
-      /*floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 120.0),
-        child: FloatingActionButton(   // Botón para subir audio
-          onPressed: _pickAndUploadFile,
-          tooltip: "Subir archivo",
-          child: const Icon(Icons.upload),
-        ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.startDocked,*/
     );
   }
 

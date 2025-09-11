@@ -10,7 +10,9 @@ class AuthService {
     scopes: ['email', 'https://www.googleapis.com/auth/drive.file'],
   );
 
-  /// === OBTENCIÓN DE CREDENCIALES DE INICIO DE SESIÓN CON GOOGLE ===
+  /// ================================================================
+  ///     OBTENCIÓN DE CREDENCIALES DE INICIO DE SESIÓN CON GOOGLE
+  /// ================================================================
   Future<UserCredential> signInWithGoogle() async {
     // Forzamos elección de cuenta
     //await GoogleSignIn().signOut();
@@ -35,12 +37,18 @@ class AuthService {
     return await /*FirebaseAuth.instance*/_firebaseAuth.signInWithCredential(credential);
   }
 
-  /// === CIERRE DE SESIÓN EN GOOGLE Y FIREBASE ===
+  /// =============================================
+  ///     CIERRE DE SESIÓN EN GOOGLE Y FIREBASE
+  /// =============================================
   Future<void> signOut() async {
     // Cerramos sesión de Firebase y Google
     await _firebaseAuth.signOut();
     await _googleSignIn.signOut();
   }
+
+  /// =============================================
+  ///     OBTENCIÓN DE HEADERS DE AUTENTICACIÓN
+  /// =============================================
 
   Future<Map<String, String>> getAuthHeaders2() async {
     //final account = await _googleSignIn.signIn();

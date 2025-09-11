@@ -18,7 +18,6 @@ class SearchPage extends StatefulWidget {
 }
 
 class _SearchPageState extends State<SearchPage> {
-  //final TrackerService _trackerService = TrackerService("http://34.175.220.81:8080"); // De momento sólo busca en tracker-1
   bool isDownloading = false;
   Set<String> downloadingFiles = {};
   final DriveService _driveService = DriveService();
@@ -32,22 +31,11 @@ class _SearchPageState extends State<SearchPage> {
     //_loadAudios();
   }
 
-
-
-  // LOAD ALL SHARED AUDIOS IN NETWORK
-  /*Future<void> _loadAudios() async {
-    // Obtenemos todos los audios que se están compartiendo
-    final audios = await _trackerService.getSharedAudios();
-
-    debugPrint("Audios compartiendo: ${audios.length}");
-
-    setState(() {
-      // Inicializamos los audios compartiendo
-      allAudios = audios;
-      //filteredAudios = audios;
-    });
-  }*/
-
+  /// ==================================
+  ///    FILTRO DE BÚSQUEDA DE AUDIOS
+  ///
+  /// query: texto de búsqueda
+  /// ==================================
   void _filterAudios(String query) async {
     debugPrint("Filtrando audios: $query");
     debugPrint("query empty?: ${query.isEmpty}");
@@ -73,15 +61,11 @@ class _SearchPageState extends State<SearchPage> {
       );
     }
 
-    /*setState(() {
-      // Filtramos por las palabras de búsqueda
-      filteredAudios = allAudios
-          .where((audio) => audio.name.toLowerCase().contains(query.toLowerCase()))
-          .toList();
-    });*/
-
   }
 
+  /// =======================================
+  ///    OBTENCIÓN DEL TRACKER MÁS CERCANO
+  /// =======================================
   Future<int> _findTracker() async {
     List<int> latencies = [];
 
@@ -114,27 +98,6 @@ class _SearchPageState extends State<SearchPage> {
 
     // Si no devolvemos el índice del tracker-2
     return 1;
-  }
-
-  Future<void> showDownloadNotification(String fileName) async {
-    const AndroidNotificationDetails androidPlatformChannelSpecifics =
-    AndroidNotificationDetails(
-      'download_channel',
-      'Descargas',
-      channelDescription: 'Notificaciones de descarga de audio',
-      importance: Importance.high,
-      priority: Priority.high,
-    );
-
-    const NotificationDetails platformChannelSpecifics =
-    NotificationDetails(android: androidPlatformChannelSpecifics);
-
-    await NotificationService.plugin.show(
-      0,
-      'Descarga completada',
-      'El archivo $fileName se ha descargado correctamente.',
-      platformChannelSpecifics,
-    );
   }
 
   @override
@@ -180,7 +143,6 @@ class _SearchPageState extends State<SearchPage> {
                         title: Text(audio.name),
                         subtitle: Text("Compartido por: ${audio.owner}"),
                         onTap: () {
-                          // Aquí podrías abrir un reproductor o iniciar descarga
                           print("Seleccionado: ${audio.name} desde ${audio.ip}");
                         },
                       );*/
@@ -238,47 +200,6 @@ class _SearchPageState extends State<SearchPage> {
                                   },
                                 );
                               },
-
-                              /*onPressed: downloadingFiles.contains(audio.fileId)//isDownloading
-                                ? null
-                                : () async {
-                                  if (!mounted) return; // Extra seguro
-
-                                  setState(() {
-                                    downloadingFiles.add(audio.fileId);//isDownloading = true;
-                                  });
-                                // Asume 'root' o la carpeta destino conocida
-                                final String? destinationFolderId = await _driveService.getFolderId("P2P-Audio-Share");
-                                /*final newId = await _driveService.copyFile(
-                                  audio.fileId,
-                                  destinationFolderId,
-                                  audio.name,
-                                );*/
-                                final String? downloaded = await _driveService.uploadFileFromLink(
-                                    audio.link, audio.name, destinationFolderId!
-                                );
-
-                                if (!mounted) return; // Revisa si la pantalla sigue activa
-
-                                setState(() {
-                                  downloadingFiles.remove(audio.fileId);//isDownloading = false;
-                                });
-
-                                if (downloaded != null) {
-                                  widget.downloadedNotif.value = true;
-                                  debugPrint('Enviando Notfier true...');
-
-                                  // Notificación en pantalla
-                                  /*ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Archivo descargado!')),
-                                  );*/
-                                  showDownloadNotification(audio.name);
-                                } else {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Error al descargar el archivo')),
-                                  );
-                                }
-                              },*/
                             ),
                           ),
                           const Divider(),
@@ -290,13 +211,6 @@ class _SearchPageState extends State<SearchPage> {
               ],
             ),
           ),
-          /*if (isDownloading)
-            Container(
-              color: const Color.fromARGB(77, 0, 0, 0), // 0.3 * 255 = 76.5 ≈ 77
-              child: const Center(
-                child: CircularProgressIndicator(),
-              ),
-            ),*/
         ],
       )
     );
