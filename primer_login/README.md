@@ -1,21 +1,32 @@
-# primer_login
-
-A new Flutter project.
+# primer\_login (actually P2P-Audio-Share)
 
 ## Getting Started
 
-This project is a starting point for a Flutter application.
+TFG project about a decentralized and distributed app for sharing audios.
 
-A few resources to get you started if this is your first Flutter project:
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+To test de code:
 
-## NOTAS
+* Create a device emulator.
+* Run the proyect (a window of the device emulated will appear) with :$ flutter run (in terminal) or PLAY button.
 
-## IMPORTANTE
-- El archivo android/key.properties no debe estar en un repositorio público
+
+
+To create release apk:
+
+* Run :$ flutter build apk --split-per-abi  (in terminal).
+* It will appear some apk executables in build/app/outputs/flutter-apk folder (they depend on the final usaer device architecture).
+
+
+
+To add dependencies:
+
+* Run :$ flutter clean.
+* Run :$ flutter pub get (in terminal) to get dependencies added in pubspec.yaml file.
+
+
+
+## NOTAS IMPORTANTES
+
+* El archivo android/key.properties no debe estar en un repositorio público
